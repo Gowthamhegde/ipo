@@ -1,0 +1,68 @@
+# AWS ECS Task Definition for IPO GMP Analyzer
+version: '3'
+services:
+  backend:
+    image: your-account.dkr.ecr.region.amazonaws.com/ipo-analyzer-backend:latest
+    cpu: 512
+    memory: 1024
+    essential: true
+    portMappings:
+      - containerPort: 8000
+        protocol: tcp
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - TWILIO_SID=${TWILIO_SID}
+      - TWILIO_TOKEN=${TWILIO_TOKEN}
+    logConfiguration:
+      logDriver: awslogs
+      options:
+        awslogs-group: /ecs/ipo-analyzer-backend
+        awslogs-region: us-east-1
+        awslogs-stream-prefix: ecs
+
+  frontend:
+    image: your-account.dkr.ecr.region.amazonaws.com/ipo-analyzer-frontend:latest
+    cpu: 256
+    memory: 512
+    essential: true
+    portMappings:
+      - containerPort: 3000
+        protocol: tcp
+    environment:
+      - BACKEND_URL=${BACKEND_URL}
+    dependsOn:
+      - backend
+    logConfiguration:
+      logDriver: awslogs
+      options:
+        awslogs-group: /ecs/ipo-analyzer-frontend
+        awslogs-region: us-east-1
+        awslogs-stream-prefix: ecs
+
+# AWS RDS Configuration
+# Database: PostgreSQL 15
+# Instance: db.t3.micro (for development)
+# Storage: 20GB GP2
+# Multi-AZ: No (for cost optimization)
+
+# AWS ElastiCache Configuration
+# Engine: Redis 7.x
+# Node Type: cache.t3.micro
+# Number of nodes: 1
+
+# AWS Application Load Balancer
+# Target Groups:
+#   - Frontend: Port 3000
+#   - Backend: Port 8000
+# Health Checks: /health endpoint
+
+# Environment Variables (AWS Systems Manager Parameter Store)
+# /ipo-analyzer/database-url
+# /ipo-analyzer/redis-url
+# /ipo-analyzer/secret-key
+# /ipo-analyzer/email-credentials
+# /ipo-analyzer/twilio-credentials

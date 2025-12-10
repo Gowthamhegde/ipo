@@ -1,0 +1,83 @@
+# Render.com Deployment Configuration
+
+# Backend Service (Web Service)
+services:
+  - type: web
+    name: ipo-analyzer-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ipo-analyzer-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: ipo-analyzer-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+
+  # Frontend Service (Static Site)
+  - type: web
+    name: ipo-analyzer-frontend
+    env: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    plan: starter
+    region: oregon
+    branch: main
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: ipo-analyzer-backend
+          property: host
+
+# Database (PostgreSQL)
+databases:
+  - name: ipo-analyzer-db
+    databaseName: ipo_analyzer
+    user: postgres
+    plan: starter
+    region: oregon
+
+# Redis Cache
+services:
+  - type: redis
+    name: ipo-analyzer-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+
+# Background Jobs (Cron Jobs)
+services:
+  - type: cron
+    name: ipo-data-fetcher
+    env: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "0 */2 * * *"  # Every 2 hours
+    command: python -c "from tasks.scheduler import update_ipo_data; update_ipo_data()"
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend
+
+  - type: cron
+    name: gmp-validator
+    env: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "*/30 * * * *"  # Every 30 minutes
+    command: python -c "from tasks.scheduler import validate_gmp_data; validate_gmp_data()"
+    plan: starter
+    region: oregon
+    branch: main
+    rootDir: backend

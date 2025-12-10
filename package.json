@@ -1,26 +1,59 @@
 {
-  "name": "ipo",
-  "version": "0.1.0",
-  "private": true,
+  "name": "ipo-gmp-analyzer",
+  "version": "1.0.0",
+  "description": "IPO GMP Analyzer & Notifier for Indian Stock Market",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "backend": "cd backend && uvicorn main:app --reload",
+    "setup": "npm install && cd backend && pip install -r requirements.txt",
+    "docker:build": "docker build -t ipo-analyzer-frontend .",
+    "docker:run": "docker run -p 3000:3000 ipo-analyzer-frontend",
+    "docker:compose": "docker-compose -f deployment/docker-compose.yml up -d",
+    "test": "echo 'No tests specified' && exit 0"
   },
   "dependencies": {
-    "next": "16.0.8",
-    "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "next": "^14.0.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "tailwindcss": "^3.3.0",
+    "@tailwindcss/forms": "^0.5.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "axios": "^1.6.0",
+    "recharts": "^2.8.0",
+    "lucide-react": "^0.294.0",
+    "react-hot-toast": "^2.4.0",
+    "date-fns": "^2.30.0",
+    "@headlessui/react": "^1.7.0",
+    "clsx": "^2.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.8",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "@types/jest": "^29.0.0"
+  },
+  "keywords": [
+    "ipo",
+    "gmp",
+    "stock-market",
+    "india",
+    "investment",
+    "notifications",
+    "machine-learning",
+    "nextjs",
+    "fastapi"
+  ],
+  "author": "IPO GMP Analyzer Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/ipo-gmp-analyzer.git"
   }
 }
