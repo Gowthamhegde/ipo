@@ -1,45 +1,49 @@
 {
   "name": "ipo-gmp-analyzer",
-  "version": "1.0.0",
-  "description": "IPO GMP Analyzer & Notifier for Indian Stock Market",
+  "version": "2.0.0",
+  "description": "Complete IPO GMP Analyzer with ML Predictions & Real-time Notifications",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "backend": "cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000",
-    "setup": "npm install",
-    "setup:backend": "cd backend && pip install -r requirements.txt",
-    "setup:full": "npm run setup && npm run setup:backend",
-    "clean": "rm -rf node_modules package-lock.json .next && npm cache clean --force",
-    "fresh-install": "npm run clean && npm install",
-    "security-audit": "npm audit && npm audit fix",
-    "security-check": "npm audit --audit-level moderate",
-    "update-deps": "npm update && npm audit fix",
-    "docker:build": "docker build -t ipo-analyzer-frontend .",
-    "docker:run": "docker run -p 3000:3000 ipo-analyzer-frontend",
-    "docker:compose": "docker-compose -f deployment/docker-compose.yml up -d",
-    "test": "echo 'Frontend working - no tests configured' && exit 0",
-    "health-check": "curl -f http://localhost:3000 || echo 'Frontend not running'"
+    "backend": "cd backend && python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000",
+    "setup": "npm install && cd backend && pip install -r requirements.txt",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "test": "jest",
+    "test:backend": "cd backend && python -m pytest",
+    "deploy:prod": "npm run build && docker-compose -f docker-compose.prod.yml up -d"
   },
   "dependencies": {
-    "autoprefixer": "^10.4.16",
-    "axios": "^1.6.2",
-    "bytez.js": "^1.1.18",
     "next": "^15.0.0",
-    "postcss": "^8.4.32",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "tailwindcss": "^3.4.0"
+    "axios": "^1.6.2",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.0.18",
+    "recharts": "^2.8.0",
+    "socket.io-client": "^4.7.4",
+    "react-hot-toast": "^2.4.1",
+    "framer-motion": "^10.16.16",
+    "date-fns": "^2.30.0",
+    "react-query": "^3.39.3",
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.8",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
+    "typescript": "^5.3.0",
     "eslint": "^8.56.0",
     "eslint-config-next": "^15.0.0",
-    "typescript": "^5.3.0"
+    "jest": "^29.7.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/jest-dom": "^6.1.5"
   },
   "keywords": [
     "ipo",
@@ -47,15 +51,10 @@
     "stock-market",
     "india",
     "investment",
+    "ml-predictions",
     "notifications",
-    "machine-learning",
-    "nextjs",
-    "fastapi"
+    "real-time"
   ],
   "author": "IPO GMP Analyzer Team",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/ipo-gmp-analyzer.git"
-  }
+  "license": "MIT"
 }
