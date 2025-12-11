@@ -234,6 +234,140 @@ class BackendAPIService {
     return 'https://groww.in/ipo'
   }
 
+  // Update IPO status (for automatic listing detection)
+  async updateIPOStatus(ipoId, newStatus, additionalData = {}) {
+    try {
+      const healthCheck = await this.checkBackendHealth()
+      if (!healthCheck.available) {
+        throw new Error('Backend not available')
+      }
+
+      const updateData = {
+        status: newStatus,
+        ...additionalData,
+        updated_at: new Date().toISOString()
+      }
+
+      const response = await fetch(`${this.baseURL}/ipos/${ipoId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update IPO status')
+      }
+
+      const result = await response.json()
+      
+      // Clear cache to force refresh
+      this.clearCache()
+      
+      console.log(`✅ Updated IPO ${ipoId} status to ${newStatus}`)
+      return result
+
+    } catch (error) {
+      console.error('Error updating IPO status:', error)
+      throw error
+    }
+  }
+
+  // Batch update multiple IPO statuses
+  async batchUpdateIPOStatuses(updates) {
+    try {
+      const healthCheck = await this.checkBackendHealth()
+      if (!healthCheck.available) {
+        throw new Error('Backend not available')
+      }
+
+      const response = await fetch(`${this.baseURL}/ipos/batch-update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ updates })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to batch update IPO statuses')
+      }
+
+      const result = await response.json()
+      
+      // Clear cache to force refresh
+      this.clearCache()
+      
+      console.log(`✅ Batch updated ${updates.length} IPO statuses`)
+      return result
+
+    } catch (error) {
+      console.error('Error batch updating IPO statuses:', error)
+      throw error
+    }
+  }
+
+  // Sync daily IPO data with backend
+  async syncDailyIPOs(dailyIPOs) {
+    try {
+      const healthCheck = await this.checkBackendHealth()
+      if (!healthCheck.available) {
+        throw new Error('Backend not available')
+      }
+
+      const response = await fetch(`${this.baseURL}/ipos/daily-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ipos: dailyIPOs,
+          sync_date: new Date().toISOString(),
+          source: 'daily_fetch'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to sync daily IPOs')
+      }
+
+      const result = await response.json()
+      
+      // Clear cache to force refresh
+      this.clearCache()
+      
+      console.log(`✅ Synced ${dailyIPOs.length} daily IPOs with backend`)
+      return result
+
+    } catch (error) {
+      console.error('Error syncing daily IPOs:', error)
+      throw error
+    }
+  }
+
+  // Get daily IPO statistics from backend
+  async getDailyIPOStats() {
+    try {
+      const healthCheck = await this.checkBackendHealth()
+      if (!healthCheck.available) {
+        return { available: false, error: 'Backend not available' }
+      }
+
+      const response = await fetch(`${this.baseURL}/ipos/daily-stats`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch daily stats')
+      }
+
+      const stats = await response.json()
+      return { available: true, stats }
+
+    } catch (error) {
+      console.error('Error fetching daily stats:', error)
+      return { available: false, error: error.message }
+    }
+  }
+
   // Clear cache
   clearCache() {
     this.cache.clear()

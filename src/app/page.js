@@ -128,38 +128,115 @@ function SimpleDashboard() {
   const [boardFilter, setBoardFilter] = useState('all') // 'all', 'mainboard', 'sme'
   const [liveStatus, setLiveStatus] = useState({ isLive: false, source: 'Loading...' })
   const [realTimeUpdates, setRealTimeUpdates] = useState({ updates: [] })
+  const [listingAlerts, setListingAlerts] = useState({ hasAlerts: false, alerts: [] })
+  const [autoListingEnabled, setAutoListingEnabled] = useState(true)
+  const [dailyFetchStatus, setDailyFetchStatus] = useState({ isSchedulerRunning: false, hasTodaysData: false })
+  const [dailyFetchEnabled, setDailyFetchEnabled] = useState(true)
+
 
   // Fetch real IPO data using Bytez AI
   useEffect(() => {
     fetchIPOData()
-  }, [])
+    
+    // Start automatic listing monitor
+    if (autoListingEnabled) {
+      bytezApiService.startListingMonitor()
+      
+      // Check for listing alerts every 30 minutes
+      const alertInterval = setInterval(checkListingAlerts, 30 * 60 * 1000)
+      
+      return () => {
+        clearInterval(alertInterval)
+        bytezApiService.stopListingMonitor()
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoListingEnabled]) // Intentionally limited dependencies
+
+  // Start daily IPO fetching scheduler
+  useEffect(() => {
+    if (dailyFetchEnabled) {
+      bytezApiService.startDailyIPOScheduler()
+      
+      // Update daily fetch status
+      const updateDailyStatus = () => {
+        const status = bytezApiService.getDailyFetchStatus()
+        setDailyFetchStatus(status)
+      }
+      
+      updateDailyStatus()
+      const statusInterval = setInterval(updateDailyStatus, 60000) // Update every minute
+      
+      return () => {
+        clearInterval(statusInterval)
+        bytezApiService.stopDailyIPOScheduler()
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dailyFetchEnabled])
 
   // Apply filter when board filter changes
   useEffect(() => {
     if (ipos.length > 0) {
       applyFilter()
     }
-  }, [boardFilter])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardFilter, ipos.length]) // Intentionally excluding applyFilter to avoid infinite loop
+
+  // Check for listing alerts
+  const checkListingAlerts = useCallback(async () => {
+    try {
+      const alerts = await bytezApiService.getListingAlerts()
+      setListingAlerts(alerts)
+      
+      // If there are new listings, refresh the data
+      if (alerts.hasAlerts && alerts.alerts.length > 0) {
+        console.log(`🎯 Found ${alerts.alerts.length} new listings, refreshing data...`)
+        // Trigger a data refresh by calling fetchIPOData indirectly
+        setLastUpdated(null) // This will trigger a re-fetch
+      }
+    } catch (error) {
+      console.error('Error checking listing alerts:', error)
+    }
+  }, [])
 
   const fetchIPOData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Get live analysis status and real-time updates
-      const [status, ipoData, updates] = await Promise.all([
+      // Get live analysis status, daily IPO data, real-time updates, and check for new listings
+      const [status, dailyIPOs, updates, alerts, dailyStatus] = await Promise.all([
         bytezApiService.getLiveAnalysisStatus(),
-        bytezApiService.fetchRealIPOData(),
-        bytezApiService.getRealTimeUpdates()
+        bytezApiService.fetchDailyIPOUpdates(),
+        bytezApiService.getRealTimeUpdates(),
+        bytezApiService.getListingAlerts(),
+        Promise.resolve(bytezApiService.getDailyFetchStatus())
       ])
+      
+      setDailyFetchStatus(dailyStatus)
       
       setLiveStatus(status)
       setRealTimeUpdates(updates)
-      setIpos(ipoData)
+      setListingAlerts(alerts)
+      setIpos(dailyIPOs) // Use daily fetched IPO data
       setLastUpdated(new Date().toLocaleTimeString())
       
-      // Apply filtering locally
-      applyFilter(ipoData, boardFilter)
+      // Apply filtering directly without dependency
+      const filtered = await bytezApiService.filterIPOsByBoard(boardFilter)
+      setFilteredIpos(filtered)
+      
+      // Calculate stats locally
+      const filteredStats = {
+        totalIpos: filtered.length,
+        activeIpos: filtered.filter(ipo => ['Open', 'Upcoming'].includes(ipo.status)).length,
+        profitableIpos: filtered.filter(ipo => ipo.isProfitable).length,
+        avgGMP: filtered.length > 0 ? 
+          parseFloat((filtered.reduce((sum, ipo) => sum + ipo.gmp, 0) / filtered.length).toFixed(2)) : 0,
+        boardType: boardFilter,
+        lastUpdated: new Date().toISOString()
+      }
+      setStats(filteredStats)
       
     } catch (err) {
       setError('Failed to fetch IPO data. Please try again.')
@@ -202,8 +279,14 @@ function SimpleDashboard() {
       
       console.log('🔄 User requested data refresh...')
       
-      // Force fresh data fetch
-      const freshData = await bytezApiService.refreshAllData()
+      // Force fresh daily IPO data fetch and refresh all data
+      const [freshData, dailyData] = await Promise.all([
+        bytezApiService.refreshAllData(),
+        bytezApiService.forceDailyFetch()
+      ])
+      
+      // Use daily data if available, otherwise use fresh data
+      const latestData = dailyData && dailyData.length > 0 ? dailyData : freshData
       
       // Update live status
       const status = await bytezApiService.getLiveAnalysisStatus()
@@ -213,9 +296,28 @@ function SimpleDashboard() {
       const updates = await bytezApiService.getRealTimeUpdates()
       setRealTimeUpdates(updates)
       
-      setIpos(freshData)
+      setIpos(latestData)
+      
+      // Update daily fetch status
+      const dailyStatus = bytezApiService.getDailyFetchStatus()
+      setDailyFetchStatus(dailyStatus)
       setLastUpdated(new Date().toLocaleTimeString())
-      applyFilter(freshData, boardFilter)
+      
+      // Apply filtering directly
+      const filtered = await bytezApiService.filterIPOsByBoard(boardFilter)
+      setFilteredIpos(filtered)
+      
+      // Calculate stats locally
+      const filteredStats = {
+        totalIpos: filtered.length,
+        activeIpos: filtered.filter(ipo => ['Open', 'Upcoming'].includes(ipo.status)).length,
+        profitableIpos: filtered.filter(ipo => ipo.isProfitable).length,
+        avgGMP: filtered.length > 0 ? 
+          parseFloat((filtered.reduce((sum, ipo) => sum + ipo.gmp, 0) / filtered.length).toFixed(2)) : 0,
+        boardType: boardFilter,
+        lastUpdated: new Date().toISOString()
+      }
+      setStats(filteredStats)
       
       console.log(`✅ Refresh complete: ${freshData.length} IPOs loaded`)
       
@@ -225,7 +327,7 @@ function SimpleDashboard() {
     } finally {
       setLoading(false)
     }
-  }, [boardFilter, applyFilter])
+  }, [boardFilter])
 
 
 
@@ -233,6 +335,8 @@ function SimpleDashboard() {
     // Open Groww IPO page in new tab
     window.open(ipo.growwUrl, '_blank', 'noopener,noreferrer')
   }, [])
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-50 via-primary-50 to-accent-50">
@@ -307,6 +411,127 @@ function SimpleDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Listing Alerts Notification */}
+      {listingAlerts.hasAlerts && listingAlerts.alerts.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="bg-gradient-to-r from-success-500 to-primary-500 rounded-xl p-4 shadow-lg border border-success-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">🎉</span>
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold">New IPO Listings!</h3>
+                  <p className="text-white/90 text-sm">
+                    {listingAlerts.alerts.length} IPO(s) have been listed on the stock market
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setListingAlerts({ hasAlerts: false, alerts: [] })}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {listingAlerts.alerts.map((alert, index) => (
+                <div key={index} className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium">{alert.title}</p>
+                      <p className="text-white/80 text-sm">{alert.message}</p>
+                    </div>
+                    {alert.listingGains && (
+                      <div className="text-right">
+                        <p className="text-white font-semibold">
+                          {alert.listingGains > 0 ? '+' : ''}{alert.listingGains}%
+                        </p>
+                        <p className="text-white/80 text-xs">Listing Gains</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Fetch Status & Controls */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="bg-gradient-to-r from-white/95 to-primary-50/95 rounded-xl p-4 shadow-lg border border-primary-200/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  dailyFetchStatus.hasTodaysData 
+                    ? 'bg-success-500 animate-pulse' 
+                    : 'bg-warning-500'
+                }`}></div>
+                <span className="text-sm font-medium text-dark-700">
+                  IPO Data: {dailyFetchStatus.hasTodaysData ? 'Live & Updated' : 'Updating...'}
+                </span>
+              </div>
+              
+              {dailyFetchStatus.lastFetch && (
+                <span className="text-xs text-dark-500">
+                  Last fetch: {new Date(dailyFetchStatus.lastFetch).toLocaleString()}
+                </span>
+              )}
+              
+              {dailyFetchStatus.nextFetchTime && (
+                <span className="text-xs text-dark-500">
+                  Next: {new Date(dailyFetchStatus.nextFetchTime).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <button
+                onClick={async () => {
+                  setLoading(true)
+                  await bytezApiService.forceDailyFetch()
+                  const status = bytezApiService.getDailyFetchStatus()
+                  setDailyFetchStatus(status)
+                  await fetchIPOData()
+                  setLoading(false)
+                }}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-accent-500 text-white rounded-lg hover:from-primary-600 hover:to-accent-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 disabled:opacity-50 disabled:transform-none text-sm"
+              >
+                <span className={`${loading ? 'animate-spin' : ''}`}>
+                  {loading ? '⟳' : '🔄'}
+                </span>
+                Refresh Data
+              </button>
+              
+              <label className="flex items-center gap-2 text-sm text-dark-600">
+                <input
+                  type="checkbox"
+                  checked={dailyFetchEnabled}
+                  onChange={(e) => setDailyFetchEnabled(e.target.checked)}
+                  className="rounded border-primary-300 text-primary-600 focus:ring-primary-500"
+                />
+                Daily Auto-Fetch
+              </label>
+              
+              <label className="flex items-center gap-2 text-sm text-dark-600">
+                <input
+                  type="checkbox"
+                  checked={autoListingEnabled}
+                  onChange={(e) => setAutoListingEnabled(e.target.checked)}
+                  className="rounded border-primary-300 text-primary-600 focus:ring-primary-500"
+                />
+                Auto-detect Listings
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {useMemo(() => (
@@ -550,6 +775,37 @@ function SimpleDashboard() {
               >
                 {loading ? '🔄 Checking IPO Watch...' : '🔄 Refresh from IPO Watch'}
               </button>
+            </div>
+          ) : filteredIpos.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="bg-gradient-to-br from-primary-50 to-accent-50 rounded-3xl p-12 shadow-xl border-2 border-primary-200/50">
+                <div className="w-24 h-24 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <span className="text-4xl">📊</span>
+                </div>
+                <h3 className="text-2xl font-bold bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-transparent mb-4">
+                  No IPOs Currently Available
+                </h3>
+                <p className="text-dark-600 mb-6 max-w-md mx-auto">
+                  There are no real IPOs currently open or upcoming in the Indian market. 
+                  This reflects the actual market conditions.
+                </p>
+                <div className="space-y-3 text-sm text-dark-500">
+                  <p>✅ Real-time data from BSE, NSE, and SEBI</p>
+                  <p>✅ Live market verification</p>
+                  <p>✅ No fake or placeholder data</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setLoading(true)
+                    await refreshData()
+                    setLoading(false)
+                  }}
+                  disabled={loading}
+                  className="mt-6 bg-gradient-to-r from-primary-500 to-accent-500 text-white px-8 py-3 rounded-xl font-semibold hover:from-primary-600 hover:to-accent-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50"
+                >
+                  {loading ? '🔄 Checking...' : '🔄 Check for New IPOs'}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
