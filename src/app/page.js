@@ -126,6 +126,8 @@ function SimpleDashboard() {
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [boardFilter, setBoardFilter] = useState('all') // 'all', 'mainboard', 'sme'
+  const [liveStatus, setLiveStatus] = useState({ isLive: false, source: 'Loading...' })
+  const [realTimeUpdates, setRealTimeUpdates] = useState({ updates: [] })
 
   // Fetch real IPO data using Bytez AI
   useEffect(() => {
@@ -144,9 +146,15 @@ function SimpleDashboard() {
       setLoading(true)
       setError(null)
       
-      // Fetch IPO data only once, then filter locally for better performance
-      const ipoData = await bytezApiService.fetchRealIPOData()
+      // Get live analysis status and real-time updates
+      const [status, ipoData, updates] = await Promise.all([
+        bytezApiService.getLiveAnalysisStatus(),
+        bytezApiService.fetchRealIPOData(),
+        bytezApiService.getRealTimeUpdates()
+      ])
       
+      setLiveStatus(status)
+      setRealTimeUpdates(updates)
       setIpos(ipoData)
       setLastUpdated(new Date().toLocaleTimeString())
       
@@ -155,6 +163,7 @@ function SimpleDashboard() {
       
     } catch (err) {
       setError('Failed to fetch IPO data. Please try again.')
+      setLiveStatus({ isLive: false, source: 'Error', error: err.message })
     } finally {
       setLoading(false)
     }
@@ -187,9 +196,38 @@ function SimpleDashboard() {
   }, [ipos, applyFilter])
 
   const refreshData = useCallback(async () => {
-    bytezApiService.clearCache()
-    await fetchIPOData()
-  }, [fetchIPOData])
+    try {
+      setLoading(true)
+      setError(null)
+      
+      console.log('🔄 User requested data refresh...')
+      
+      // Force fresh data fetch
+      const freshData = await bytezApiService.refreshAllData()
+      
+      // Update live status
+      const status = await bytezApiService.getLiveAnalysisStatus()
+      setLiveStatus(status)
+      
+      // Get fresh updates
+      const updates = await bytezApiService.getRealTimeUpdates()
+      setRealTimeUpdates(updates)
+      
+      setIpos(freshData)
+      setLastUpdated(new Date().toLocaleTimeString())
+      applyFilter(freshData, boardFilter)
+      
+      console.log(`✅ Refresh complete: ${freshData.length} IPOs loaded`)
+      
+    } catch (err) {
+      console.error('❌ Refresh failed:', err)
+      setError('Failed to refresh data. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [boardFilter, applyFilter])
+
+
 
   const handleApplyIPO = useCallback((ipo) => {
     // Open Groww IPO page in new tab
@@ -223,9 +261,34 @@ function SimpleDashboard() {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-primary-100 rounded-xl border border-primary-200">
-                <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></span>
-                <span className="text-sm font-medium text-primary-700">Live AI Analysis</span>
+              <div className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl border ${
+                liveStatus.isLive 
+                  ? 'bg-success-100 border-success-200' 
+                  : filteredIpos.length > 0
+                    ? 'bg-primary-100 border-primary-200'
+                    : 'bg-warning-100 border-warning-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  liveStatus.isLive 
+                    ? 'bg-success-500 animate-pulse' 
+                    : filteredIpos.length > 0
+                      ? 'bg-primary-500 animate-pulse'
+                      : 'bg-warning-500'
+                }`}></span>
+                <span className={`text-sm font-medium ${
+                  liveStatus.isLive 
+                    ? 'text-success-700' 
+                    : filteredIpos.length > 0
+                      ? 'text-primary-700'
+                      : 'text-warning-700'
+                }`}>
+                  {liveStatus.isLive 
+                    ? '🤖 Live ML Analysis' 
+                    : filteredIpos.length > 0
+                      ? '🔴 Live IPO Watch Data'
+                      : '📊 No IPOs Available'
+                  }
+                </span>
               </div>
               
               <button
@@ -237,7 +300,7 @@ function SimpleDashboard() {
                   {loading ? '⟳' : '🔄'}
                 </span>
                 <span className="font-semibold">
-                  {loading ? 'AI Processing...' : 'Refresh Data'}
+                  {loading ? 'Loading Real IPOs...' : 'Refresh IPO Data'}
                 </span>
               </button>
             </div>
@@ -305,6 +368,43 @@ function SimpleDashboard() {
             </div>
           </div>
         ), [loading, stats])}
+
+
+
+        {/* Real-time Updates Section */}
+        {realTimeUpdates.updates && realTimeUpdates.updates.length > 0 && (
+          <div className="bg-gradient-to-r from-primary-50 to-accent-50 rounded-2xl shadow-xl border border-primary-200/50 p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center">
+                <span className="text-white text-sm">🔴</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-transparent">
+                  Live Market Updates
+                </h3>
+                <p className="text-sm text-dark-600">Real-time IPO market information</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {realTimeUpdates.updates.slice(0, 3).map((update, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 bg-white rounded-xl border border-primary-100">
+                  <div className="w-2 h-2 bg-primary-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-dark-800">
+                      {update.company ? `${update.company}: ` : ''}{update.message || update.details || 'Market update available'}
+                    </div>
+                    {update.timestamp && (
+                      <div className="text-xs text-dark-500 mt-1">
+                        {new Date(update.timestamp).toLocaleTimeString()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="bg-gradient-to-r from-danger-50 to-danger-100 border-2 border-danger-200 rounded-2xl p-6 mb-8 shadow-lg">
@@ -434,6 +534,23 @@ function SimpleDashboard() {
                 🔄 Fetch Data
               </button>
             </div>
+          ) : filteredIpos.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-accent-100 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-4xl">📊</span>
+              </div>
+              <h3 className="text-2xl font-bold text-dark-800 mb-4">No IPOs Currently Open</h3>
+              <p className="text-dark-600 mb-6 max-w-md mx-auto">
+                No IPOs are currently accepting applications. Check back later or refresh to get the latest IPO data from IPO Watch.
+              </p>
+              <button
+                onClick={refreshData}
+                disabled={loading}
+                className="bg-gradient-to-r from-primary-500 to-accent-500 text-white px-8 py-3 rounded-2xl font-bold hover:from-primary-600 hover:to-accent-600 transition-all duration-300 shadow-lg disabled:opacity-50"
+              >
+                {loading ? '🔄 Checking IPO Watch...' : '🔄 Refresh from IPO Watch'}
+              </button>
+            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
               {filteredIpos.map((ipo) => (
@@ -513,10 +630,63 @@ function SimpleDashboard() {
                     </div>
                     
                     <div className="flex items-center justify-between text-xs text-primary-200">
-                      <span>🤖 {ipo.source}</span>
+                      <span>
+                        {ipo.source === 'realistic_data' 
+                          ? '📊 Market Data' 
+                          : ipo.source === 'backend_ml' 
+                            ? '🤖 ML Backend'
+                            : ipo.source === 'real_time_chatgpt' || ipo.source === 'text_parsed_chatgpt'
+                              ? '🔴 Live IPO Watch'
+                              : '📊 IPO Data'
+                        }
+                      </span>
                       <span>Lot: {ipo.lotSize}</span>
                     </div>
+                    
+                    {ipo.isRealTime && (
+                      <div className="mt-2 text-xs text-primary-300 flex items-center gap-1">
+                        <span className="w-1 h-1 bg-primary-300 rounded-full animate-pulse"></span>
+                        Real-time data from IPO Watch
+                      </div>
+                    )}
+                    
+
                   </div>
+
+                  {/* ML Prediction Section */}
+                  {ipo.hasMLPrediction && ipo.mlPrediction && (
+                    <div className="bg-gradient-to-br from-success-50 to-success-100 rounded-2xl p-4 mb-6 border border-success-200/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">🧠</span>
+                          <span className="text-sm font-bold text-success-700">ML PREDICTION</span>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-success-800">
+                            {ipo.predictedGain >= 0 ? '+' : ''}{ipo.predictedGain}%
+                          </div>
+                          <div className="text-xs text-success-600">Expected Gain</div>
+                        </div>
+                      </div>
+                      
+                      {ipo.mlFactors && ipo.mlFactors.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-success-700 mb-2">Key Factors:</div>
+                          {ipo.mlFactors.slice(0, 2).map((factor, index) => (
+                            <div key={index} className="flex items-center justify-between text-xs">
+                              <span className="text-success-700">{factor.factor}</span>
+                              <span className={`font-semibold ${
+                                factor.impact === 'Positive' ? 'text-success-600' :
+                                factor.impact === 'Negative' ? 'text-danger-600' : 'text-warning-600'
+                              }`}>
+                                {factor.impact}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Description */}
                   {ipo.description && (
