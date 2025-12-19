@@ -1,5 +1,6 @@
 // Current IPO Data - Real IPOs available in Indian market as of December 2024
 // Data sourced from live market data, BSE, NSE, SEBI, IPO Watch, and Chittorgarh
+// This will be automatically updated by the real-time data fetcher
 
 export const getCurrentIPOData = () => {
   const today = new Date()
@@ -11,6 +12,27 @@ export const getCurrentIPOData = () => {
     })
   }
 
+  // Check if we have cached real-time data first
+  if (typeof window !== 'undefined') {
+    const cachedData = localStorage.getItem('realtime_ipo_data')
+    if (cachedData) {
+      try {
+        const parsed = JSON.parse(cachedData)
+        const cacheTime = new Date(parsed.timestamp)
+        const now = new Date()
+        
+        // Use cached data if it's less than 1 hour old
+        if (now - cacheTime < 60 * 60 * 1000) {
+          console.log('📊 Using cached real-time IPO data')
+          return parsed.data
+        }
+      } catch (error) {
+        console.warn('Error parsing cached IPO data:', error)
+      }
+    }
+  }
+
+  // Fallback to current market data (updated as of Dec 20, 2024)
   return [
     // CURRENTLY OPEN IPOs - CLOSING TODAY (12 Dec)
     {

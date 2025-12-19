@@ -1,175 +1,235 @@
-from pydantic import BaseModel, EmailStr, validator
-from datetime import datetime
+from pydantic import BaseModel, EmailStr, validator, Field
 from typing import Optional, List, Dict, Any
+from datetime import datetime, date
+from decimal import Decimal
 from enum import Enum
 
+# Enums
 class IPOStatus(str, Enum):
     upcoming = "upcoming"
     open = "open"
     closed = "closed"
     listed = "listed"
 
-class NotificationType(str, Enum):
-    new_ipo = "new_ipo"
-    gmp_spike = "gmp_spike"
-    listing_reminder = "listing_reminder"
-    profitable_ipo = "profitable_ipo"
+class RiskLevel(str, Enum):
+    low = "Low"
+    medium = "Medium"
+    high = "High"
 
-# User schemas
-class UserPreferences(BaseModel):
-    min_profit_percentage: float = 10.0
-    min_absolute_profit: float = 20.0
-    preferred_industries: List[str] = []
-    risk_level: str = "medium"  # low, medium, high
-    notification_channels: Dict[str, bool] = {
-        "email": True,
-        "sms": False,
-        "push": True
-    }
-    gmp_spike_threshold: float = 8.0
+class SubscriptionCategory(str, Enum):
+    retail = "retail"
+    qib = "qib"
+    hni = "hni"
 
-class UserCreate(BaseModel):
-    email: EmailStr
-    name: str
-    password: str
-    preferences: Optional[UserPreferences] = None
-
-class UserResponse(BaseModel):
-    id: int
-    email: str
-    name: str
-    is_active: bool
-    preferences: Dict[str, Any]
-    created_at: datetime
-    
+# Base schemas
+class BaseSchema(BaseModel):
     class Config:
         from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+            date: lambda v: v.isoformat(),
+            Decimal: lambda v: float(v)
+        }
 
-# IPO schemas
-class IPOBase(BaseModel):
-    name: str
-    company_name: str
-    issue_price_min: float
-    issue_price_max: float
-    issue_size: Optional[float] = None
-    lot_size: Optional[int] = None
-    open_date: Optional[datetime] = None
-    close_date: Optional[datetime] = None
-    listing_date: Optional[datetime] = None
-    status: IPOStatus = IPOStatus.upcoming
-    industry: Optional[str] = None
-    lead_managers: Optional[str] = None
-    registrar: Optional[str] = None
+# IPO Schemas
+class IPOBase(BaseSchema):
+    ipo_name: str = Field(..., min_length=1, max_length=255)
+    company_name: str = Field(..., min_length=1, max_length=255)
+    issue_price_min: Decimal = Field(..., gt=0, decimal_places=2)
+    issue_price_max: Decimal = Field(..., gt=0, decimal_places=2)
+    issue_size: Optional[Decimal] = Field(None, gt=0, decimal_places=2)
+    lot_size: Optional[int] = Field(None, gt=0)
+    sector: Optional[str] = Field(None, max_length=100)
+    
+    @validator('issue_price_max')
+    def validate_price_range(cls, v, values):
+        if 'issue_price_min' in values and v < values['issue_price_min']:
+            raise ValueError('issue_price_max must be >= issue_price_min')
+        return v
 
 class IPOCreate(IPOBase):
-    pass
-
+    open_date: Optional[date] = None
+    close_date: Optional[date] = None
+    listing_date: Optional[date] = None
+    status: IPOStatus = IPOStatus.upcoming
+    
 class IPOResponse(IPOBase):
     id: int
-    current_gmp: float
-    gmp_percentage: float
-    confidence_score: float
-    is_profitable: bool
+    open_date: Optional[date]
+    close_date: Optional[date]
+    listing_date: Optional[date]
+    status: IPOStatus
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime]
+    current_gmp: Optional[Decimal] = None
+    subscription_status: Optional[Dict[str, Any]] = None
+
+# User Schemas
+class UserBase(BaseSchema):
+    email: EmailStr
+    full_name: Optional[str] = Field(None, max_length=255)
+    username: Optional[str] = Field(None, min_length=3, max_length=100)
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, max_length=100)
+    phone_number: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')
     
-    class Config:
-        from_attributes = True
+    @validator('password')
+    def validate_password(cls, v):
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
+        return v
 
-# GMP Data schemas
-class GMPDataBase(BaseModel):
-    ipo_id: int
-    source: str
-    gmp_value: float
-    gmp_percentage: float
-    is_valid: bool = True
-    confidence: float = 1.0
+class UserUpdate(BaseSchema):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = Field(None, max_length=255)
+    username: Optional[str] = Field(None, min_length=3, max_length=100)
+    phone_number: Optional[str] = Field(None, pattern=r'^\+?[1-9]\d{1,14}$')
+    preferences: Optional[Dict[str, Any]] = None
 
-class GMPDataCreate(GMPDataBase):
-    pass
-
-class GMPDataResponse(GMPDataBase):
+class UserResponse(UserBase):
     id: int
-    timestamp: datetime
-    
-    class Config:
-        from_attributes = True
+    phone_number: Optional[str]
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+    last_login: Optional[datetime]
 
-# Notification schemas
-class NotificationBase(BaseModel):
-    type: NotificationType
-    title: str
-    message: str
+# GMP Data Schemas
+class GMPDataResponse(BaseSchema):
+    id: int
+    ipo_id: int
+    gmp_value: Decimal
+    premium_percentage: float
+    source: str
+    recorded_at: datetime
+    is_verified: bool = Field(default=False)
+
+# Notification Schemas
+class NotificationBase(BaseSchema):
+    title: str = Field(..., min_length=1, max_length=255)
+    message: str = Field(..., min_length=1, max_length=1000)
+    notification_type: str = Field(..., max_length=50)
+    is_read: bool = Field(default=False)
 
 class NotificationCreate(NotificationBase):
-    user_id: int
-    ipo_id: Optional[int] = None
+    user_id: Optional[int] = None
 
 class NotificationResponse(NotificationBase):
     id: int
-    user_id: int
-    ipo_id: Optional[int]
-    is_sent: bool
-    is_read: bool
-    sent_at: Optional[datetime]
+    user_id: Optional[int]
     created_at: datetime
-    email_sent: bool
-    sms_sent: bool
-    push_sent: bool
-    
-    class Config:
-        from_attributes = True
+    updated_at: Optional[datetime]
 
-# Data validation schemas
-class GMPValidationResult(BaseModel):
+# User Preferences Schema
+class UserPreferences(BaseSchema):
+    email_notifications: bool = Field(default=True)
+    sms_notifications: bool = Field(default=False)
+    push_notifications: bool = Field(default=True)
+    notification_frequency: str = Field(default="daily", pattern="^(immediate|daily|weekly)$")
+    preferred_sectors: List[str] = Field(default_factory=list)
+    risk_tolerance: RiskLevel = Field(default=RiskLevel.medium)
+    investment_amount_range: Optional[str] = Field(None, max_length=50)
+
+# ML Prediction Schema
+class MLPredictionResponse(BaseSchema):
     ipo_id: int
-    validated_gmp: float
-    confidence_score: float
-    sources_count: int
-    is_reliable: bool
-    variance: float
-    outliers: List[str] = []
-
-class DataSourceStatus(BaseModel):
-    name: str
-    is_active: bool
-    last_fetch: Optional[datetime]
-    success_rate: float
-    avg_response_time: float
-    status: str  # "healthy", "degraded", "down"
-
-# ML Prediction schemas
-class PredictionFeatures(BaseModel):
-    issue_size: float
-    price_band_width: float
-    industry_performance: float
-    market_sentiment: float
-    subscription_ratio: Optional[float] = None
-    gmp_trend: float
-    days_to_listing: int
-
-class ListingPrediction(BaseModel):
-    ipo_id: int
-    predicted_gain_percentage: float
-    confidence_score: float
-    risk_level: str
-    factors: List[Dict[str, Any]]
+    predicted_gmp: Decimal
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    prediction_date: datetime
     model_version: str
+    features_used: Dict[str, Any]
 
-# System monitoring schemas
-class SystemHealth(BaseModel):
-    status: str
-    uptime: float
-    active_data_sources: int
-    total_data_sources: int
-    last_data_update: datetime
-    pending_notifications: int
-    error_rate: float
-
-class AdminStats(BaseModel):
+# System Stats Schema
+class SystemStatsResponse(BaseSchema):
     total_ipos: int
     active_ipos: int
+    profitable_ipos: int
     total_users: int
-    notifications_sent_today: int
-    avg_gmp_accuracy: float
-    system_health: SystemHealth
+    active_users: int
+    recent_notifications: int
+    profitability_rate: float
+    last_update: datetime
+    system_health: Dict[str, str]
+
+# Prediction Schemas
+class PredictionRequest(BaseSchema):
+    ipo_id: int
+    features: Dict[str, Any]
+
+class PredictionResponse(BaseSchema):
+    ipo_id: int
+    predicted_value: Decimal
+    confidence: float
+    model_used: str
+    prediction_date: datetime
+
+# Error Response Schemas
+class ErrorResponse(BaseSchema):
+    error: str
+    message: str
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class ValidationError(BaseSchema):
+    field: str
+    message: str
+    value: Any
+
+class ValidationErrorResponse(BaseSchema):
+    error: str = "validation_error"
+    message: str = "Input validation failed"
+    details: List[ValidationError]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+# Pagination Schemas
+class PaginationParams(BaseSchema):
+    page: int = Field(default=1, ge=1)
+    size: int = Field(default=20, ge=1, le=100)
+    sort_by: Optional[str] = Field(default="created_at")
+    sort_order: Optional[str] = Field(default="desc", pattern="^(asc|desc)$")
+
+class FilterParams(BaseSchema):
+    status: Optional[IPOStatus] = None
+    sector: Optional[str] = None
+    min_gmp: Optional[Decimal] = None
+    max_gmp: Optional[Decimal] = None
+    min_issue_size: Optional[Decimal] = None
+    max_issue_size: Optional[Decimal] = None
+    risk_level: Optional[RiskLevel] = None
+    has_prediction: Optional[bool] = None
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
+
+# Bulk Operations
+class BulkIPOCreate(BaseSchema):
+    ipos: List[IPOCreate] = Field(..., min_items=1, max_items=100)
+
+class BulkIPOResponse(BaseSchema):
+    created: int
+    failed: int
+    errors: List[Dict[str, Any]]
+    created_ids: List[int]
+
+# Health Check Schema
+class HealthCheck(BaseSchema):
+    status: str
+    timestamp: datetime
+    version: str
+    database: bool
+    cache: bool
+    external_apis: Dict[str, bool]
+    system_load: Dict[str, Any]
+
+# GMP Validation Schema
+class GMPValidationResult(BaseSchema):
+    is_valid: bool
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    validation_source: str
+    validation_timestamp: datetime
+    anomalies: List[str] = Field(default_factory=list)
+    suggested_gmp: Optional[Decimal] = None

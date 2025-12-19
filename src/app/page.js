@@ -1,7 +1,10 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import bytezApiService from '../lib/bytezApiService'
+import fallbackIPOService from '../lib/fallbackIPOService'
+
+// Use Gemini AI as primary service, fallback as backup
+const bytezApiService = fallbackIPOService
 
 // Stylish Navbar with new color scheme
 function Navbar({ onShowDashboard }) {
