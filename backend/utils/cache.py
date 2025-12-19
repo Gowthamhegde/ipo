@@ -1,168 +1,107 @@
-import redis.asyncio as redis
-import json
-import asyncio
-from typing import Any, Optional, Union
-from datetime import timedelta
-import pickle
-import hashlib
-from config import settings
-from utils.logger import performance_logger
 import time
+from typing import Any, Optional, Dict
+import json
+import hashlib
 
-class CacheManager:
-    """Advanced Redis cache manager with performance monitoring"""
+class SimpleCache:
+    """Simple in-memory cache implementation"""
     
     def __init__(self):
-        self.redis_client = None
-        self.is_connected = False
-        self.connection_pool = None
+        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._default_ttl = 3600  # 1 hour
     
-    async def initialize(self):
-        """Initialize Redis connection with connection pooling"""
-        try:
-            self.connection_pool = redis.ConnectionPool.from_url(
-                settings.REDIS_URL,
-                max_connections=20,
-                retry_on_timeout=True,
-                decode_responses=False  # We'll handle encoding ourselves
-            )
-            
-            self.redis_client = redis.Redis(connection_pool=self.connection_pool)
-            
-            # Test connection
-            await self.redis_client.ping()
-            self.is_connected = True
-            
-            print(f"✅ Redis connected successfully")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Redis connection failed: {e}")
-            self.is_connected = False
-            return False
+    def _is_expired(self, item: Dict[str, Any]) -> bool:
+        """Check if cache item is expired"""
+        return time.time() > item['expires_at']
     
-    async def close(self):
-        """Close Redis connection"""
-        if self.redis_client:
-            await self.redis_client.close()
-        if self.connection_pool:
-            await self.connection_pool.disconnect()
+    def _cleanup_expired(self):
+        """Remove expired items from cache"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, item in self._cache.items()
+            if current_time > item['expires_at']
+        ]
+        for key in expired_keys:
+            del self._cache[key]
     
-    def _serialize_value(self, value: Any) -> bytes:
-        """Serialize value for storage"""
-        if isinstance(value, (str, int, float, bool)):
-            return json.dumps(value).encode('utf-8')
-        else:
-            # Use pickle for complex objects
-            return pickle.dumps(value)
-    
-    def _deserialize_value(self, value: bytes) -> Any:
-        """Deserialize value from storage"""
-        try:
-            # Try JSON first
-            return json.loads(value.decode('utf-8'))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            # Fall back to pickle
-            return pickle.loads(value)
-    
-    def _generate_key(self, key: str, prefix: str = "ipo") -> str:
-        """Generate cache key with prefix"""
-        return f"{prefix}:{key}"
-    
-    async def get(self, key: str, prefix: str = "ipo") -> Optional[Any]:
-        """Get value from cache with performance logging"""
-        if not self.is_connected:
-            return None
+    def get(self, key: str) -> Optional[Any]:
+        """Get item from cache"""
+        self._cleanup_expired()
         
-        start_time = time.time()
-        cache_key = self._generate_key(key, prefix)
-        
-        try:
-            value = await self.redis_client.get(cache_key)
-            execution_time = time.time() - start_time
-            
-            if value:
-                result = self._deserialize_value(value)
-                performance_logger.log_cache_operation(
-                    "get", cache_key, hit=True, execution_time=execution_time
-                )
-                return result
+        if key in self._cache:
+            item = self._cache[key]
+            if not self._is_expired(item):
+                return item['value']
             else:
-                performance_logger.log_cache_operation(
-                    "get", cache_key, hit=False, execution_time=execution_time
-                )
-                return None
-                
-        except Exception as e:
-            execution_time = time.time() - start_time
-            performance_logger.log_cache_operation(
-                "get", cache_key, hit=False, execution_time=execution_time
-            )
-            print(f"Cache get error for key {cache_key}: {e}")
-            return None
+                del self._cache[key]
+        
+        return None
     
-    async def set(
-        self, 
-        key: str, 
-        value: Any, 
-        ttl: Optional[int] = None, 
-        prefix: str = "ipo"
-    ) -> bool:
-        """Set value in cache with TTL"""
-        if not self.is_connected:
-            return False
+    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        """Set item in cache"""
+        if ttl is None:
+            ttl = self._default_ttl
         
-        start_time = time.time()
-        cache_key = self._generate_key(key, prefix)
-        
-        try:
-            serialized_value = self._serialize_value(value)
-            
-            if ttl:
-                await self.redis_client.setex(cache_key, ttl, serialized_value)
-            else:
-                await self.redis_client.set(cache_key, serialized_value)
-            
-            execution_time = time.time() - start_time
-            performance_logger.log_cache_operation(
-                "set", cache_key, execution_time=execution_time
-            )
+        expires_at = time.time() + ttl
+        self._cache[key] = {
+            'value': value,
+            'expires_at': expires_at
+        }
+        return True
+    
+    def delete(self, key: str) -> bool:
+        """Delete item from cache"""
+        if key in self._cache:
+            del self._cache[key]
             return True
-            
-        except Exception as e:
-            execution_time = time.time() - start_time
-            performance_logger.log_cache_operation(
-                "set", cache_key, execution_time=execution_time
-            )
-            print(f"Cache set error for key {cache_key}: {e}")
-            return False
+        return False
     
-    async def delete(self, key: str, prefix: str = "ipo") -> bool:
-        """Delete key from cache"""
-        if not self.is_connected:
-            return False
-        
-        cache_key = self._generate_key(key, prefix)
-        
-        try:
-            result = await self.redis_client.delete(cache_key)
-            performance_logger.log_cache_operation("delete", cache_key)
-            return bool(result)
-        except Exception as e:
-            print(f"Cache delete error for key {cache_key}: {e}")
-            return False
+    def clear(self) -> bool:
+        """Clear all cache"""
+        self._cache.clear()
+        return True
     
-    async def health_check(self) -> bool:
-        """Check cache health"""
-        if not self.is_connected:
-            return False
-        
-        try:
-            await self.redis_client.ping()
-            return True
-        except Exception as e:
-            print(f"Cache health check failed: {e}")
-            return False
+    def exists(self, key: str) -> bool:
+        """Check if key exists in cache"""
+        return self.get(key) is not None
 
-# Global cache instance
+class CacheManager:
+    """Cache manager with different cache strategies"""
+    
+    def __init__(self):
+        self.cache = SimpleCache()
+    
+    def cache_key(self, prefix: str, *args, **kwargs) -> str:
+        """Generate cache key from arguments"""
+        key_data = f"{prefix}:{':'.join(map(str, args))}"
+        if kwargs:
+            key_data += f":{json.dumps(kwargs, sort_keys=True)}"
+        
+        # Hash long keys
+        if len(key_data) > 100:
+            key_data = hashlib.md5(key_data.encode()).hexdigest()
+        
+        return key_data
+    
+    def get_or_set(self, key: str, func, ttl: Optional[int] = None) -> Any:
+        """Get from cache or set using function"""
+        value = self.cache.get(key)
+        if value is not None:
+            return value
+        
+        # Execute function and cache result
+        value = func()
+        self.cache.set(key, value, ttl)
+        return value
+    
+    def invalidate_pattern(self, pattern: str):
+        """Invalidate cache keys matching pattern"""
+        keys_to_delete = [
+            key for key in self.cache._cache.keys()
+            if pattern in key
+        ]
+        for key in keys_to_delete:
+            self.cache.delete(key)
+
+# Create global cache manager instance
 cache_manager = CacheManager()

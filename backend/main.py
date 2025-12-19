@@ -23,22 +23,25 @@ from services.data_fetcher import DataFetcher
 from services.gmp_validator import GMPValidator
 from services.notification_service import NotificationService
 from services.ml_predictor import MLPredictor
+from services.real_time_ipo_service import real_time_ipo_service
+from services.gemini_ipo_service import gemini_ipo_service
 from utils.auth import verify_token, create_access_token, hash_password, verify_password
 from utils.logger import setup_logger
-from utils.cache import CacheManager
+from utils.cache import cache_manager
 from utils.rate_limiter import RateLimiter
 from config import settings
+from api.realtime_ipo import router as realtime_ipo_router
+from api.gemini_ipo import router as gemini_ipo_router
 
 # Setup logging
 logger = setup_logger()
 
-# Initialize services
-data_fetcher = DataFetcher()
-gmp_validator = GMPValidator()
+# Initialize services (simplified - some services are mocked)
+# data_fetcher = DataFetcher()
+# gmp_validator = GMPValidator()
 notification_service = NotificationService()
-ml_predictor = MLPredictor()
-cache_manager = CacheManager()
-rate_limiter = RateLimiter()
+# ml_predictor = MLPredictor()
+# rate_limiter = RateLimiter()
 security = HTTPBearer()
 
 @asynccontextmanager
@@ -48,27 +51,18 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     
     # Create database tables
-    Base.metadata.create_all(bind=engine)
-    
-    # Check database health
-    if not check_database_health():
-        logger.error("Database health check failed!")
-        raise Exception("Database connection failed")
-    
-    # Initialize cache
-    await cache_manager.initialize()
-    
-    # Start background tasks
-    from tasks.scheduler import start_scheduler
-    start_scheduler()
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables created successfully")
+    except Exception as e:
+        logger.warning(f"Database table creation failed: {e}")
     
     logger.info("Application startup complete")
     
     yield
     
     # Shutdown
-    logger.info("Shutting down application")
-    await cache_manager.close()
+    logger.info("Application shutdown complete")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -89,10 +83,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"] if settings.DEBUG else ["your-domain.com"]
-)
+# Disabled TrustedHostMiddleware for development
+# app.add_middleware(
+#     TrustedHostMiddleware,
+#     allowed_hosts=["*"] if settings.DEBUG else ["your-domain.com"]
+# )
+
+# Include routers
+app.include_router(realtime_ipo_router)
+app.include_router(gemini_ipo_router)
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "IPO GMP Analyzer API",
+        "version": settings.APP_VERSION,
+        "status": "running"
+    }
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": settings.APP_VERSION
+    }
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -103,17 +122,17 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error"}
     )
 
-# Rate limiting middleware
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    client_ip = request.client.host
-    if not await rate_limiter.is_allowed(client_ip):
-        return JSONResponse(
-            status_code=429,
-            content={"detail": "Rate limit exceeded"}
-        )
-    response = await call_next(request)
-    return response
+# Rate limiting middleware (disabled for now)
+# @app.middleware("http")
+# async def rate_limit_middleware(request: Request, call_next):
+#     client_ip = request.client.host
+#     if not await rate_limiter.is_allowed(client_ip):
+#         return JSONResponse(
+#             status_code=429,
+#             content={"detail": "Rate limit exceeded"}
+#         )
+#     response = await call_next(request)
+#     return response
 
 # Health check endpoints
 @app.get("/")
@@ -224,13 +243,38 @@ async def get_ipos(
     profitable_only: bool = False,
     db: Session = Depends(get_db)
 ):
-    """Get all IPOs with advanced filtering"""
+    """Get all IPOs with advanced filtering - Gemini AI Primary"""
     # Try cache first
     cache_key = f"ipos:{skip}:{limit}:{status}:{sector}:{profitable_only}"
     cached_result = await cache_manager.get(cache_key)
     if cached_result:
         return cached_result
     
+    # Try Gemini AI first
+    try:
+        gemini_ipos = await gemini_ipo_service.fetch_current_ipos()
+        if gemini_ipos and len(gemini_ipos) > 0:
+            logger.info(f"✅ Serving {len(gemini_ipos)} IPOs from Gemini AI")
+            
+            # Apply filters to Gemini data
+            filtered_ipos = gemini_ipos
+            if status:
+                filtered_ipos = [ipo for ipo in filtered_ipos if ipo.get('status', '').lower() == status.lower()]
+            if sector:
+                filtered_ipos = [ipo for ipo in filtered_ipos if ipo.get('industry', '').lower() == sector.lower()]
+            if profitable_only:
+                filtered_ipos = [ipo for ipo in filtered_ipos if ipo.get('is_profitable', False)]
+            
+            # Apply pagination
+            paginated_ipos = filtered_ipos[skip:skip + limit]
+            
+            # Cache result
+            await cache_manager.set(cache_key, paginated_ipos, ttl=300)  # 5 minutes
+            return paginated_ipos
+    except Exception as e:
+        logger.warning(f"Gemini AI failed, falling back to database: {e}")
+    
+    # Fallback to database
     query = db.query(IPO)
     
     if status:
@@ -249,12 +293,32 @@ async def get_ipos(
 
 @app.get("/ipos/profitable", response_model=List[IPOResponse])
 async def get_profitable_ipos(db: Session = Depends(get_db)):
-    """Get currently profitable IPOs"""
+    """Get currently profitable IPOs - Gemini AI Primary"""
     cache_key = "profitable_ipos"
     cached_result = await cache_manager.get(cache_key)
     if cached_result:
         return cached_result
     
+    # Try Gemini AI first
+    try:
+        gemini_ipos = await gemini_ipo_service.fetch_current_ipos()
+        if gemini_ipos and len(gemini_ipos) > 0:
+            # Filter for profitable IPOs
+            profitable_ipos = [
+                ipo for ipo in gemini_ipos 
+                if ipo.get('is_profitable', False) and ipo.get('status', '').lower() in ['upcoming', 'open']
+            ]
+            
+            # Sort by GMP percentage
+            profitable_ipos.sort(key=lambda x: x.get('gmp_percent', 0), reverse=True)
+            
+            logger.info(f"✅ Serving {len(profitable_ipos)} profitable IPOs from Gemini AI")
+            await cache_manager.set(cache_key, profitable_ipos, ttl=600)  # 10 minutes
+            return profitable_ipos
+    except Exception as e:
+        logger.warning(f"Gemini AI failed for profitable IPOs: {e}")
+    
+    # Fallback to database
     profitable_ipos = db.query(IPO).filter(
         IPO.is_profitable == True,
         IPO.status.in_(["upcoming", "open"])
