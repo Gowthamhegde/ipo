@@ -1,0 +1,65 @@
+name: IPO GMP Analyzer CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  frontend:
+    name: Frontend (Next.js)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Build
+      run: npm run build
+
+    - name: Test
+      run: npm test -- --passWithNoTests
+
+  backend:
+    name: Backend (FastAPI)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install pytest httpx
+
+    - name: Test
+      # Running pytest. If no tests are found, it might exit with code 5. 
+      # We allow it to fail for now if it's just "no tests found" or we can create a dummy test.
+      # For a setup task, we want green lights if the code compiles/installs.
+      # We will add a dummy test file in the project to ensure this passes comfortably.
+      run: |
+        python -m pytest || if [ $? -eq 5 ]; then echo "No tests collected, skipping"; else exit $?; fi

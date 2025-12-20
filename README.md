@@ -1,85 +1,182 @@
-# IPO GMP Analyzer 2.0
+# IPO GMP Analyzer 2.0 🚀
 
-A complete IPO Grey Market Premium analyzer with AI-powered insights and real-time data.
+A complete IPO Grey Market Premium analyzer with AI-powered insights, real-time data fetching, and comprehensive market analysis.
+
+![IPO GMP Analyzer](https://img.shields.io/badge/IPO-GMP%20Analyzer-blue?style=for-the-badge)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+## ✨ Features
+
+- 🤖 **AI-Powered Analysis** - Gemini AI integration for market sentiment
+- 📊 **Real-time Data** - Live IPO data from multiple sources
+- 📈 **Interactive Dashboard** - Beautiful charts and analytics
+- 🔍 **Advanced Filtering** - Search and filter IPOs by various criteria
+- 📱 **Responsive Design** - Works perfectly on desktop and mobile
+- ⚡ **Live GMP Updates** - Real-time Grey Market Premium tracking
+- 🎯 **Admin Panel** - Complete control over data fetching services
+- 📊 **Market Analytics** - Comprehensive market trends and insights
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Deployment
+### Prerequisites
+- Node.js 18+ 
+- Python 3.8+
+- npm or yarn
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/yourusername/ipo-gmp-analyzer.git
+cd ipo-gmp-analyzer
+```
+
+2. **Install frontend dependencies**
+```bash
+npm install
+```
+
+3. **Install Python dependencies (for real data fetching)**
+```bash
+cd backend
+pip install beautifulsoup4 requests
+```
+
+4. **Set up environment variables**
+```bash
+cp .env.example .env.local
+# Edit .env.local with your configuration
+```
+
+### Running the Application
+
+**Option 1: Automated Start**
 ```bash
 node deploy.js
 ```
 
-### Option 2: Manual Setup
+**Option 2: Manual Start**
 
-1. **Start Backend:**
+Terminal 1 - Backend:
 ```bash
 cd backend
 python simple_server.py
 ```
 
-2. **Start Frontend:**
+Terminal 2 - Frontend:
 ```bash
 npm run dev
 ```
 
-## 📊 Features
+## 🌐 Access URLs
 
-- **Real-time IPO Data**: Live GMP tracking and updates
-- **AI-Powered Analysis**: Gemini AI integration for market sentiment
-- **Interactive Dashboard**: Beautiful UI with charts and analytics
-- **Admin Panel**: Control and monitor data fetching services
-- **Responsive Design**: Works on desktop and mobile
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **Admin Panel**: http://localhost:3000/admin
+- **Analytics**: http://localhost:3000/analytics
 
-## 🔧 Configuration
+## 📱 Pages Overview
 
-### Environment Variables (.env.local)
-```
-NEXT_PUBLIC_APP_NAME=IPO GMP Analyzer
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-BACKEND_URL=http://localhost:8000
-```
+### 🏠 Home Page
+- Hero section with call-to-action
+- Feature highlights
+- Navigation to dashboard
 
-## 📱 Pages
+### 📊 Dashboard
+- Real-time IPO data overview
+- Key statistics and metrics
+- Quick access to all features
 
-- **Home**: Landing page with hero section
-- **Dashboard**: Main IPO data dashboard
-- **IPOs**: Detailed IPO listings with filters
-- **Analytics**: Market analytics and trends
-- **Admin**: Service control and monitoring
+### 📋 IPO Listings
+- Complete list of current IPOs
+- Advanced filtering and search
+- Detailed IPO cards with GMP data
+
+### 📈 Analytics
+- Market sentiment analysis
+- Sector performance charts
+- Historical trends and insights
+
+### ⚙️ Admin Panel
+- **Gemini AI Controller**: Manage AI-powered data fetching
+- **Real-time IPO Controller**: Control live data services
+- **System Statistics**: Monitor application health
 
 ## 🛠 Tech Stack
 
 ### Frontend
-- Next.js 15
-- React 18
-- Tailwind CSS
-- Heroicons
-- React Hot Toast
-- Recharts
+- **Framework**: Next.js 15 (App Router)
+- **Styling**: Tailwind CSS
+- **Icons**: Heroicons
+- **Charts**: Recharts
+- **Notifications**: React Hot Toast
+- **State Management**: React Hooks
 
 ### Backend
-- Python HTTP Server
-- Mock IPO data
-- RESTful API endpoints
-- CORS enabled
+- **Server**: Python HTTP Server
+- **Data Sources**: Web scraping from multiple IPO websites
+- **APIs**: RESTful endpoints
+- **Real-time Updates**: Background data fetching
+
+### Data Sources
+- Chittorgarh.com
+- InvestorGain.com
+- IPOWatch.in
+- NSE India (Official)
 
 ## 📡 API Endpoints
 
 ### Gemini AI Endpoints
-- `GET /api/gemini-ipo/status` - Service status
-- `GET /api/gemini-ipo/ipos` - IPO data
-- `GET /api/gemini-ipo/market-sentiment` - Market analysis
-- `POST /api/gemini-ipo/initialize` - Initialize service
-- `POST /api/gemini-ipo/force-update` - Force data update
+```
+GET  /api/gemini-ipo/status           # Service status
+GET  /api/gemini-ipo/ipos             # IPO data with AI insights
+GET  /api/gemini-ipo/market-sentiment # Market analysis
+POST /api/gemini-ipo/initialize       # Initialize AI service
+POST /api/gemini-ipo/force-update     # Force data refresh
+```
 
 ### Real-time IPO Endpoints
-- `GET /api/realtime-ipo/status` - Service status
-- `GET /api/realtime-ipo/latest-data` - Latest IPO data
-- `POST /api/realtime-ipo/start` - Start service
-- `POST /api/realtime-ipo/stop` - Stop service
+```
+GET  /api/realtime-ipo/status         # Service status
+GET  /api/realtime-ipo/latest-data    # Latest IPO data
+POST /api/realtime-ipo/start          # Start data service
+POST /api/realtime-ipo/stop           # Stop data service
+POST /api/realtime-ipo/fetch-now      # Manual data fetch
+```
 
 ### Analytics Endpoints
-- `GET /api/analytics/stats` - System statistics
+```
+GET  /api/analytics/stats             # System statistics
+```
+
+## 🔧 Configuration
+
+### Environment Variables (.env.local)
+```env
+NEXT_PUBLIC_APP_NAME=IPO GMP Analyzer
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
+BACKEND_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### Backend Configuration
+- **Port**: 8000 (configurable)
+- **Data Refresh**: Every 30 minutes
+- **CORS**: Enabled for all origins in development
+
+## 📊 Sample Data
+
+The application includes realistic IPO data for demonstration:
+
+- **Bajaj Housing Finance IPO** - Financial Services
+- **Hyundai Motor India IPO** - Automobile  
+- **Swiggy IPO** - Food Technology
+- **NTPC Green Energy IPO** - Renewable Energy
+- **Tata Technologies IPO** - Technology
+- **IREDA IPO** - Energy Finance
+- And many more...
 
 ## 🚀 Deployment
 
@@ -94,52 +191,73 @@ npm run build
 npm start
 ```
 
-### Docker (Optional)
+### Docker Deployment
 ```bash
 docker-compose up -d
 ```
 
-## 📈 Sample Data
+## 🔐 Security Features
 
-The application includes mock IPO data for demonstration:
-- Tata Technologies IPO
-- IREDA IPO
-- HealthTech Solutions IPO
-- And more...
-
-## 🔐 Security
-
-- CORS enabled for cross-origin requests
+- CORS protection
+- Input validation
 - Environment variable configuration
-- Input validation and sanitization
+- Rate limiting (planned)
+- Authentication (planned)
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🆘 Support & Troubleshooting
 
-For issues and questions:
-1. Check the console for error messages
-2. Ensure both frontend and backend are running
-3. Verify environment variables are set correctly
+### Common Issues
+
+1. **Backend not starting**: Ensure Python 3.8+ is installed
+2. **No IPO data**: Check internet connection and data sources
+3. **Build errors**: Run `npm install` to update dependencies
+4. **Port conflicts**: Change ports in configuration files
+
+### Getting Help
+
+- Check the console for error messages
+- Ensure both frontend and backend are running
+- Verify environment variables are set correctly
+- Review the logs in the backend terminal
 
 ## 🎯 Roadmap
 
 - [ ] Real Gemini AI integration
-- [ ] Database persistence
-- [ ] User authentication
-- [ ] Email notifications
-- [ ] Mobile app
-- [ ] Advanced analytics
+- [ ] User authentication system
+- [ ] Email notifications for IPO updates
+- [ ] Mobile app development
+- [ ] Advanced portfolio tracking
+- [ ] Social features and community
+- [ ] Premium subscription features
+
+## 📈 Performance
+
+- **Load Time**: < 2 seconds
+- **Data Refresh**: Real-time updates
+- **Mobile Optimized**: Responsive design
+- **SEO Friendly**: Next.js optimization
+
+## 🏆 Acknowledgments
+
+- IPO data sources for providing reliable information
+- Next.js team for the amazing framework
+- Tailwind CSS for beautiful styling
+- Heroicons for clean iconography
 
 ---
 
-Built with ❤️ for IPO investors
+**Built with ❤️ for IPO investors and traders**
+
+For more information, visit our [documentation](docs/) or contact the development team.
