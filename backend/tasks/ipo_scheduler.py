@@ -1,149 +1,161 @@
 import asyncio
 import time
-from datetime import datetime, timedelta
-from typing import Callable, Dict, Any
+from datetime import datetime
+from typing import Callable, Dict, Any, List, Optional
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-class SimpleScheduler:
-    """Simple task scheduler without external dependencies"""
-    
-    def __init__(self):
-        self.tasks = []
-        self.running = False
-    
-    def every(self, interval_seconds: int):
-        """Schedule a task to run every N seconds"""
-        return TaskBuilder(self, interval_seconds)
-    
-    def add_task(self, func: Callable, interval: int, *args, **kwargs):
-        """Add a task to the scheduler"""
-        task = {
-            'func': func,
-            'interval': interval,
-            'next_run': time.time() + interval,
-            'args': args,
-            'kwargs': kwargs
-        }
-        self.tasks.append(task)
-        logger.info(f"Scheduled task {func.__name__} to run every {interval} seconds")
-    
-    async def run_pending(self):
-        """Run any pending tasks"""
-        current_time = time.time()
-        
-        for task in self.tasks:
-            if current_time >= task['next_run']:
-                try:
-                    # Run the task
-                    if asyncio.iscoroutinefunction(task['func']):
-                        await task['func'](*task['args'], **task['kwargs'])
-                    else:
-                        task['func'](*task['args'], **task['kwargs'])
-                    
-                    # Schedule next run
-                    task['next_run'] = current_time + task['interval']
-                    logger.info(f"Executed task {task['func'].__name__}")
-                    
-                except Exception as e:
-                    logger.error(f"Error executing task {task['func'].__name__}: {e}")
-    
-    async def start(self):
-        """Start the scheduler"""
-        self.running = True
-        logger.info("Scheduler started")
-        
-        while self.running:
-            await self.run_pending()
-            await asyncio.sleep(1)  # Check every second
-    
-    def stop(self):
-        """Stop the scheduler"""
-        self.running = False
-        logger.info("Scheduler stopped")
-
-class TaskBuilder:
-    """Builder for scheduling tasks"""
-    
-    def __init__(self, scheduler: SimpleScheduler, interval: int):
-        self.scheduler = scheduler
-        self.interval = interval
-    
-    def do(self, func: Callable, *args, **kwargs):
-        """Schedule the function to run"""
-        self.scheduler.add_task(func, self.interval, *args, **kwargs)
-
 class IPOScheduler:
-    """IPO-specific scheduler tasks"""
+    """IPO-specific scheduler tasks using asyncio"""
     
     def __init__(self):
-        self.scheduler = SimpleScheduler()
+        self.tasks = {}
+        self.is_running = False
+        self._scheduler_task = None
         self.logger = logger
+        self.task_history = []
     
     def setup_tasks(self):
         """Setup all IPO-related scheduled tasks"""
+        self.tasks = {
+            'periodic_fetch': {
+                'func': self.fetch_ipo_data,
+                'interval': 7200,  # 2 hours
+                'next_run': time.time() + 7200,
+                'last_run': None,
+                'status': 'pending'
+            },
+            'market_update': {
+                'func': self.update_gmp_data,
+                'interval': 1800,  # 30 minutes
+                'next_run': time.time() + 1800,
+                'last_run': None,
+                'status': 'pending'
+            },
+            'daily_fetch': {
+                'func': self.check_profitable_ipos,
+                'interval': 3600,  # 1 hour
+                'next_run': time.time() + 3600,
+                'last_run': None,
+                'status': 'pending'
+            },
+            'weekly_cleanup': {
+                'func': self.send_daily_notifications,
+                'interval': 86400,  # 24 hours
+                'next_run': time.time() + 86400,
+                'last_run': None,
+                'status': 'pending'
+            }
+        }
+    
+    async def _run_scheduler_loop(self):
+        """Main scheduler loop"""
+        self.logger.info("Scheduler loop started")
+        while self.is_running:
+            current_time = time.time()
+            
+            for task_id, task in self.tasks.items():
+                if current_time >= task['next_run']:
+                    try:
+                        self.logger.info(f"Executing task: {task_id}")
+                        task['status'] = 'running'
+                        
+                        # Execute the task
+                        await task['func']()
+                        
+                        # Update task state
+                        task['last_run'] = datetime.now().isoformat()
+                        task['next_run'] = current_time + task['interval']
+                        task['status'] = 'completed'
+                        
+                        self.task_history.append({
+                            'task_id': task_id,
+                            'status': 'success',
+                            'timestamp': datetime.now().isoformat()
+                        })
+                        
+                    except Exception as e:
+                        self.logger.error(f"Error executing task {task_id}: {e}")
+                        task['status'] = 'failed'
+                        task['next_run'] = current_time + 60  # Retry in 1 minute
+                        
+                        self.task_history.append({
+                            'task_id': task_id,
+                            'status': 'failed',
+                            'error': str(e),
+                            'timestamp': datetime.now().isoformat()
+                        })
+            
+            await asyncio.sleep(1)  # Check every second
+    
+    def start_scheduler(self):
+        """Start the scheduler"""
+        if self.is_running:
+            return
         
-        # Fetch IPO data every 2 hours (7200 seconds)
-        self.scheduler.every(7200).do(self.fetch_ipo_data)
+        self.setup_tasks()
+        self.is_running = True
+        self._scheduler_task = asyncio.create_task(self._run_scheduler_loop())
+        self.logger.info("Scheduler started")
+    
+    def stop_scheduler(self):
+        """Stop the scheduler"""
+        self.is_running = False
+        if self._scheduler_task:
+            self._scheduler_task.cancel()
+        self.logger.info("Scheduler stopped")
         
-        # Update GMP data every 30 minutes (1800 seconds)
-        self.scheduler.every(1800).do(self.update_gmp_data)
+    def get_scheduler_status(self) -> Dict:
+        """Get overall scheduler status"""
+        return {
+            'is_running': self.is_running,
+            'active_tasks': len(self.tasks),
+            'total_tasks': len(self.tasks),
+            'scheduled_jobs': len(self.tasks)
+        }
+
+    def get_task_status(self, task_id: Optional[str] = None) -> Any:
+        """Get status of specific task or all tasks"""
+        if task_id:
+            return self.tasks.get(task_id)
+        return self.tasks
+
+    def force_run_task(self, task_id: str):
+        """Force run a specific task immediately"""
+        if task_id not in self.tasks:
+            raise ValueError(f"Task {task_id} not found")
         
-        # Check for profitable IPOs every hour (3600 seconds)
-        self.scheduler.every(3600).do(self.check_profitable_ipos)
-        
-        # Send daily notifications at specific time (86400 seconds = 24 hours)
-        self.scheduler.every(86400).do(self.send_daily_notifications)
+        # Schedule it to run immediately
+        self.tasks[task_id]['next_run'] = time.time()
     
     async def fetch_ipo_data(self):
         """Fetch latest IPO data"""
         try:
-            self.logger.info("Fetching IPO data...")
-            # Mock implementation - replace with actual data fetching
-            await asyncio.sleep(1)
-            self.logger.info("IPO data fetched successfully")
+            self.logger.info("Fetching IPO data via RealTimeIPOService...")
+            from services.real_time_ipo_service import real_time_ipo_service
+            await real_time_ipo_service.fetch_all_ipo_data()
+            self.logger.info("IPO data fetch completed")
         except Exception as e:
             self.logger.error(f"Error fetching IPO data: {e}")
     
     async def update_gmp_data(self):
         """Update GMP data"""
         try:
-            self.logger.info("Updating GMP data...")
-            # Mock implementation - replace with actual GMP updates
-            await asyncio.sleep(1)
-            self.logger.info("GMP data updated successfully")
+            # Re-use fetch logic for now as it updates both IPO and GMP
+            await self.fetch_ipo_data()
         except Exception as e:
             self.logger.error(f"Error updating GMP data: {e}")
     
     async def check_profitable_ipos(self):
         """Check for profitable IPOs"""
-        try:
-            self.logger.info("Checking for profitable IPOs...")
-            # Mock implementation - replace with actual profitability check
-            await asyncio.sleep(1)
-            self.logger.info("Profitable IPO check completed")
-        except Exception as e:
-            self.logger.error(f"Error checking profitable IPOs: {e}")
+        # Placeholder for profitability notification logic
+        pass
     
     async def send_daily_notifications(self):
         """Send daily notifications"""
-        try:
-            self.logger.info("Sending daily notifications...")
-            # Mock implementation - replace with actual notification sending
-            await asyncio.sleep(1)
-            self.logger.info("Daily notifications sent successfully")
-        except Exception as e:
-            self.logger.error(f"Error sending daily notifications: {e}")
-    
-    async def start(self):
-        """Start the IPO scheduler"""
-        self.setup_tasks()
-        await self.scheduler.start()
-    
-    def stop(self):
-        """Stop the IPO scheduler"""
-        self.scheduler.stop()
+        # Placeholder for daily summary logic
+        pass
 
 # Create global scheduler instance
 ipo_scheduler = IPOScheduler()

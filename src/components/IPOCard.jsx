@@ -1,4 +1,4 @@
-import { TrendingUpIcon, TrendingDownIcon, CalendarIcon, CurrencyRupeeIcon } from '@heroicons/react/24/outline';
+import { ArrowTrendingUpIcon, ArrowTrendingDownIcon, CalendarIcon, CurrencyRupeeIcon } from '@heroicons/react/24/outline';
 
 const IPOCard = ({ ipo }) => {
   // Handle both data formats (from API and mock data)
@@ -7,7 +7,7 @@ const IPOCard = ({ ipo }) => {
   const priceRange = ipo.priceRange || ipo.price_range || `₹${ipo.issue_price_min || 100} - ₹${ipo.issue_price_max || 120}`;
   const issueSize = ipo.issueSize || ipo.issue_size || 'TBA';
   const gmp = ipo.gmp || ipo.current_gmp || 0;
-  const gmpPercent = ipo.gmpPercent || ipo.gmp_percent || ipo.gmp_percentage || 0;
+  const gmpPercent = parseFloat(ipo.gmpPercent || ipo.gmp_percent || ipo.gmp_percentage || 0);
   const status = ipo.status || 'Unknown';
   const industry = ipo.industry || ipo.sector || 'Others';
   const riskLevel = ipo.riskLevel || ipo.risk_level || 'Medium';
@@ -16,7 +16,9 @@ const IPOCard = ({ ipo }) => {
   const listingDate = ipo.listingDate || ipo.listing_date;
   const isProfitable = ipo.isProfitable || ipo.is_profitable || gmp >= 20;
   const recommendation = ipo.recommendation || (gmp >= 50 ? 'Strong Buy' : gmp >= 20 ? 'Buy' : gmp >= 0 ? 'Hold' : 'Avoid');
-  const estimatedGain = ipo.estimatedGain || ipo.estimated_gain || Math.max(0, gmp * (ipo.lotSize || ipo.lot_size || 30));
+  
+  const lotSize = parseInt(ipo.lotSize || ipo.lot_size || 30);
+  const estimatedGain = ipo.estimatedGain || ipo.estimated_gain || Math.max(0, gmp * lotSize);
 
   // Status styling
   const getStatusStyle = (status) => {
@@ -65,7 +67,7 @@ const IPOCard = ({ ipo }) => {
   };
 
   // GMP trend icon
-  const GMPTrendIcon = gmp > 0 ? TrendingUpIcon : TrendingDownIcon;
+  const GMPTrendIcon = gmp > 0 ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   const gmpTrendColor = gmp > 0 ? 'text-green-600' : 'text-red-600';
 
   // Format date
@@ -145,7 +147,7 @@ const IPOCard = ({ ipo }) => {
               <GMPTrendIcon className={`h-5 w-5 ${gmpTrendColor} mr-2`} />
               <span className="text-sm font-semibold text-gray-700">Grey Market Premium</span>
             </div>
-            {gmpPercent !== 0 && (
+            {!isNaN(gmpPercent) && gmpPercent !== 0 && (
               <span className={`text-sm font-medium ${gmp >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {gmp >= 0 ? '+' : ''}{gmpPercent.toFixed(1)}%
               </span>
@@ -160,10 +162,10 @@ const IPOCard = ({ ipo }) => {
               <p className="text-xs text-gray-500 mt-1">Current GMP</p>
             </div>
             
-            {estimatedGain > 0 && (
+            {!isNaN(estimatedGain) && estimatedGain > 0 && (
               <div className="text-right">
                 <p className="text-lg font-semibold text-indigo-600">
-                  ₹{estimatedGain.toLocaleString()}
+                  ₹{Number(estimatedGain).toLocaleString('en-IN')}
                 </p>
                 <p className="text-xs text-gray-500">Est. Gain</p>
               </div>

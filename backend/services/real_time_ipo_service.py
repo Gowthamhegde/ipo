@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 class RealTimeIPOService:
     def __init__(self):
         self.sources = {
-            'chittorgarh': 'https://www.chittorgarh.com/ipo/ipo_list_2024.asp',
+            'chittorgarh': 'https://www.chittorgarh.com/ipo/ipo_dashboard.asp',
             'ipowatch': 'https://ipowatch.in/',
             'nse': 'https://www.nseindia.com/market-data/securities-available-for-trading',
             'bse': 'https://www.bseindia.com/corporates/Forthcoming_Issues.aspx'

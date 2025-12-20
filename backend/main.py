@@ -41,7 +41,7 @@ logger = setup_logger()
 # gmp_validator = GMPValidator()
 notification_service = NotificationService()
 # ml_predictor = MLPredictor()
-# rate_limiter = RateLimiter()
+rate_limiter = RateLimiter()
 security = HTTPBearer()
 
 @asynccontextmanager
@@ -104,9 +104,8 @@ async def rate_limit_middleware(request: Request, call_next):
     # rate_limiter needs to be initialized/imported correctly. 
     # Assuming RateLimiter class exists and has is_allowed method.
     # For now, we instantiate a global limiter or use the one from dependencies
-    # limiter = RateLimiter() 
-    # if not await limiter.is_allowed(client_ip):
-    #     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
+    if not await rate_limiter.is_allowed(client_ip):
+        return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
     
     response = await call_next(request)
     return response

@@ -70,7 +70,21 @@ class CacheManager:
     
     def __init__(self):
         self.cache = SimpleCache()
+        self.is_connected = False
+        self.redis_client = None
     
+    def get(self, key: str) -> Optional[Any]:
+        """Get item from cache"""
+        return self.cache.get(key)
+
+    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+        """Set item in cache"""
+        return self.cache.set(key, value, ttl)
+
+    def delete(self, key: str) -> bool:
+        """Delete item from cache"""
+        return self.cache.delete(key)
+
     def cache_key(self, prefix: str, *args, **kwargs) -> str:
         """Generate cache key from arguments"""
         key_data = f"{prefix}:{':'.join(map(str, args))}"
@@ -102,6 +116,22 @@ class CacheManager:
         ]
         for key in keys_to_delete:
             self.cache.delete(key)
+
+    async def health_check(self) -> bool:
+        """Check cache health"""
+        try:
+            self.set('health_check', 'ok', ttl=10)
+            val = self.get('health_check')
+            return val == 'ok'
+        except Exception:
+            return False
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        return {
+            "size": len(self.cache._cache),
+            "backend": "SimpleCache (Memory)"
+        }
 
 # Create global cache manager instance
 cache_manager = CacheManager()

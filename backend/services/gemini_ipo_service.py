@@ -58,6 +58,176 @@ class GeminiIPOService:
             logger.error(f"❌ Failed to initialize Gemini IPO Service: {str(e)}")
             return False
 
+    def extract_number(self, text):
+        """Extract number from text"""
+        try:
+            # Remove currency symbols and extract numbers
+            numbers = re.findall(r'[\d,]+\.?\d*', text.replace(',', ''))
+            return float(numbers[0]) if numbers else 0
+        except:
+            return 0
+
+    async def enhance_with_gemini(self, raw_ipos):
+        """Use Gemini AI to enhance and analyze IPO data"""
+        if not self.is_initialized or not self.api_key:
+            logger.warning("Gemini not initialized, using local enhancement logic")
+            return self._local_enhance(raw_ipos)
+
+        try:
+            # Prepare data for Gemini
+            ipo_summary = []
+            for ipo in raw_ipos:
+                ipo_summary.append({
+                    "name": ipo.get('company_name', ipo.get('name', '')),
+                    "gmp": ipo.get('current_gmp', 0),
+                    "sector": ipo.get('sector', ''),
+                    "subscription": ipo.get('subscription_status', '')
+                })
+
+            prompt = f"""
+            Analyze the following Indian IPO data and provide detailed insights:
+            {json.dumps(ipo_summary)}
+
+            For each IPO, provide:
+            1. Risk level (Low, Medium, High)
+            2. Recommendation (Buy, Hold, Avoid)
+            3. Three key highlights
+            4. Sector outlook
+            5. Listing potential percentage range
+
+            Format the response as a JSON array of objects with the following keys:
+            company_name, risk_level, recommendation, highlights (list), sector_outlook, listing_potential
+            """
+
+            response_text = await self.call_gemini_api(prompt)
+            
+            # Extract JSON from response
+            json_match = re.search(r'\[.*\]', response_text, re.DOTALL)
+            if json_match:
+                ai_analysis = json.loads(json_match.group(0))
+                
+                # Merge AI analysis with raw data
+                enhanced_ipos = []
+                for ipo in raw_ipos:
+                    enhanced_ipo = ipo.copy()
+                    name = ipo.get('company_name', ipo.get('name', ''))
+                    
+                    # Find matching analysis
+                    match = next((a for a in ai_analysis if a.get('company_name') == name), None)
+                    if match:
+                        enhanced_ipo.update({
+                            'risk_level': match.get('risk_level', 'Medium'),
+                            'recommendation': match.get('recommendation', 'Hold'),
+                            'highlights': match.get('highlights', []),
+                            'sector_outlook': match.get('sector_outlook', ''),
+                            'listing_potential': match.get('listing_potential', '')
+                        })
+                    else:
+                        # Fallback to local enhancement if AI didn't return this IPO
+                        fallback = self._local_enhance([ipo])[0]
+                        enhanced_ipo.update(fallback)
+                    
+                    enhanced_ipos.append(enhanced_ipo)
+                
+                logger.info("✅ Enhanced IPO data with Gemini AI")
+                return enhanced_ipos
+            else:
+                logger.warning("Could not parse Gemini JSON response, using local enhancement")
+                return self._local_enhance(raw_ipos)
+                
+        except Exception as e:
+            logger.error(f"❌ Error enhancing data with Gemini: {str(e)}")
+            return self._local_enhance(raw_ipos)
+
+    def _local_enhance(self, raw_ipos):
+        """Local fallback for IPO enhancement logic"""
+        enhanced_ipos = []
+        for ipo in raw_ipos:
+            enhanced_ipo = ipo.copy()
+            
+            # Risk assessment based on GMP and subscription
+            gmp = ipo.get('current_gmp', 0)
+            subscription_text = str(ipo.get('subscription_status', '')).lower()
+            
+            if gmp > 30:
+                enhanced_ipo['risk_level'] = 'High'
+                enhanced_ipo['recommendation'] = 'Buy' if 'oversubscribed' in subscription_text else 'Hold'
+            elif gmp > 10:
+                enhanced_ipo['risk_level'] = 'Medium'
+                enhanced_ipo['recommendation'] = 'Buy'
+            elif gmp > 0:
+                enhanced_ipo['risk_level'] = 'Low'
+                enhanced_ipo['recommendation'] = 'Hold'
+            else:
+                enhanced_ipo['risk_level'] = 'High'
+                enhanced_ipo['recommendation'] = 'Avoid'
+            
+            # Generate highlights
+            sector = ipo.get('sector', '').lower()
+            if 'financial' in sector:
+                enhanced_ipo['highlights'] = ["Growing digital finance sector", "Strong regulatory support", "Increasing digital adoption"]
+            elif 'technology' in sector:
+                enhanced_ipo['highlights'] = ["Tech sector resilience", "Digital transformation trends", "Innovation-driven growth"]
+            else:
+                enhanced_ipo['highlights'] = ["Established market presence", "Sector fundamentals strong", "Growth potential identified"]
+            
+            enhanced_ipo['sector_outlook'] = "Positive" if gmp > 0 else "Cautious"
+            enhanced_ipo['listing_potential'] = f"{max(0, gmp-5)}-{gmp+10}% gains"
+            
+            enhanced_ipos.append(enhanced_ipo)
+        return enhanced_ipos
+
+    async def call_gemini_api(self, prompt: str) -> str:
+        """Call Gemini AI API directly"""
+        if not self.is_initialized:
+            await self.initialize()
+
+        try:
+            # Updated to use a model confirmed to be available and within quota
+            model = genai.GenerativeModel('gemini-flash-lite-latest')
+            response = await asyncio.to_thread(model.generate_content, prompt)
+            return response.text
+        except Exception as e:
+            logger.error(f"❌ Gemini API call failed: {str(e)}")
+            raise
+
+    async def force_update(self):
+        """Force immediate update from web sources"""
+        return await self.fetch_ipo_data()
+
+    async def get_ipo_analysis(self, ipo_name: str) -> Optional[Dict]:
+        """Get detailed AI analysis for a specific IPO"""
+        if not self.is_initialized:
+            await self.initialize()
+
+        try:
+            prompt = f"Provide a detailed investment analysis for the upcoming Indian IPO: {ipo_name}. Include company overview, financials, pros/cons, and final verdict."
+            analysis_text = await self.call_gemini_api(prompt)
+            
+            return {
+                "ipo_name": ipo_name,
+                "analysis": analysis_text,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"❌ Error getting analysis for {ipo_name}: {str(e)}")
+            return None
+
+    async def get_gmp_updates(self, ipo_names: Optional[List[str]] = None) -> List[Dict]:
+        """Get latest GMP updates for specified IPOs"""
+        all_ipos = await self.fetch_current_ipos()
+        
+        if not ipo_names:
+            return [{"name": i.get('company_name'), "gmp": i.get('current_gmp')} for i in all_ipos]
+            
+        updates = []
+        for name in ipo_names:
+            match = next((i for i in all_ipos if name.lower() in i.get('company_name', '').lower()), None)
+            if match:
+                updates.append({"name": match.get('company_name'), "gmp": match.get('current_gmp')})
+        
+        return updates
+
     async def fetch_ipo_data(self):
         """Fetch IPO data and enhance with Gemini AI"""
         if not self.is_initialized:

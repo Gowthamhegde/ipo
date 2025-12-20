@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
 
-export async function POST() {
+export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/gemini-ipo/initialize`, {
-      method: 'POST',
+    const response = await fetch(`${BACKEND_URL}/api/realtime-ipo/status`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -19,12 +19,17 @@ export async function POST() {
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error proxying to backend:', error)
-    return NextResponse.json(
-      { 
-        status: 'error',
-        message: 'Backend connection failed - please ensure backend is running'
+    
+    // Return mock status
+    return NextResponse.json({
+      service: {
+        is_running: false,
+        last_fetch: null
       },
-      { status: 503 }
-    )
+      scheduler: {
+        is_running: false
+      },
+      message: 'Backend unavailable'
+    })
   }
 }
