@@ -82,16 +82,16 @@ class RealTimeIPOService:
             # Fetch from all sources concurrently
             tasks = [
                 self.fetch_from_chittorgarh(),
-                self.fetch_from_ipowatch(),
-                self.fetch_from_nse(),
-                self.fetch_from_bse(),
-                self.fetch_mock_data()  # Fallback mock data
+                # Add other real fetchers here as they become reliable
+                # self.fetch_from_ipowatch(),
+                # self.fetch_from_nse(),
+                # self.fetch_from_bse(),
             ]
             
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
             all_ipos = []
-            source_names = ['Chittorgarh', 'IPOWatch', 'NSE', 'BSE', 'Mock']
+            source_names = ['Chittorgarh']
             
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
@@ -187,15 +187,15 @@ class RealTimeIPOService:
             
             # Parse price range
             price_match = re.search(r'(\d+).*?(\d+)', price_range)
-            min_price = int(price_match.group(1)) if price_match else 100
-            max_price = int(price_match.group(2)) if price_match else min_price + 10
+            min_price = int(price_match.group(1)) if price_match else 0
+            max_price = int(price_match.group(2)) if price_match else min_price
             
             return {
                 'id': f"chittorgarh_{datetime.now().timestamp()}_{hash(name) % 10000}",
                 'name': f"{name} IPO",
                 'company': name,
                 'price_range': f"₹{min_price} - ₹{max_price}",
-                'issue_size': self._estimate_issue_size(),
+                'issue_size': 0, # Cannot reliably estimate without data
                 'gmp': gmp,
                 'gmp_percent': gmp_percent,
                 'status': self._normalize_status('upcoming'),
@@ -203,9 +203,9 @@ class RealTimeIPOService:
                 'open_date': self._format_date(open_date),
                 'close_date': self._format_date(close_date),
                 'listing_date': self._calculate_listing_date(close_date),
-                'confidence_score': min(0.9, max(0.6, 0.7 + (gmp / 100))),
+                'confidence_score': 0.9, # Chittorgarh is generally reliable
                 'industry': self._guess_industry(name),
-                'lot_size': self._calculate_lot_size(min_price),
+                'lot_size': self._calculate_lot_size(min_price) if min_price > 0 else 0,
                 'board_type': self._guess_board_type(name),
                 'source': 'chittorgarh'
             }
@@ -216,82 +216,19 @@ class RealTimeIPOService:
     
     async def fetch_from_ipowatch(self) -> List[Dict]:
         """Fetch IPO data from IPOWatch"""
-        try:
-            # Mock implementation - replace with actual API when available
-            return self._generate_mock_data('ipowatch', 5)
-        except Exception as e:
-            logger.warning(f"IPOWatch fetch failed: {e}")
-            return []
+        # Placeholder for actual implementation
+        return []
     
     async def fetch_from_nse(self) -> List[Dict]:
         """Fetch IPO data from NSE"""
-        try:
-            # Mock implementation - replace with actual API when available
-            return self._generate_mock_data('nse', 3)
-        except Exception as e:
-            logger.warning(f"NSE fetch failed: {e}")
-            return []
+        # Placeholder for actual implementation
+        return []
     
     async def fetch_from_bse(self) -> List[Dict]:
         """Fetch IPO data from BSE"""
-        try:
-            # Mock implementation - replace with actual API when available
-            return self._generate_mock_data('bse', 4)
-        except Exception as e:
-            logger.warning(f"BSE fetch failed: {e}")
-            return []
-    
-    async def fetch_mock_data(self) -> List[Dict]:
-        """Generate mock IPO data for testing"""
-        return self._generate_mock_data('mock', 8)
-    
-    def _generate_mock_data(self, source: str, count: int) -> List[Dict]:
-        """Generate mock IPO data"""
-        companies = [
-            'TechCorp Solutions', 'Green Energy Ltd', 'FinTech Innovations',
-            'Healthcare Plus', 'Digital Media Co', 'Smart Logistics',
-            'EduTech Systems', 'Food & Beverages Ltd', 'Renewable Power',
-            'AI Technologies', 'Biotech Research', 'E-commerce Hub'
-        ]
-        
-        industries = [
-            'Technology', 'Energy', 'Finance', 'Healthcare', 'Media',
-            'Logistics', 'Education', 'FMCG', 'Power', 'Biotechnology'
-        ]
-        
-        import random
-        ipos = []
-        
-        for i in range(count):
-            company = random.choice(companies)
-            industry = random.choice(industries)
-            min_price = random.randint(100, 500)
-            max_price = min_price + random.randint(20, 100)
-            gmp = random.randint(-50, 200)
-            gmp_percent = (gmp / min_price) * 100
-            
-            ipos.append({
-                'id': f"{source}_{datetime.now().timestamp()}_{i}",
-                'name': f"{company} IPO",
-                'company': company,
-                'price_range': f"₹{min_price} - ₹{max_price}",
-                'issue_size': random.randint(500, 5000),
-                'gmp': gmp,
-                'gmp_percent': round(gmp_percent, 2),
-                'status': random.choice(['Upcoming', 'Open', 'Closed']),
-                'is_profitable': gmp >= 20 or gmp_percent >= 10,
-                'open_date': self._get_random_future_date(-5, 5),
-                'close_date': self._get_random_future_date(5, 15),
-                'listing_date': self._get_random_future_date(15, 25),
-                'confidence_score': round(random.uniform(0.6, 1.0), 2),
-                'industry': industry,
-                'lot_size': self._calculate_lot_size(min_price),
-                'board_type': 'SME' if random.random() > 0.7 else 'Main Board',
-                'source': source
-            })
-        
-        return ipos
-    
+        # Placeholder for actual implementation
+        return []
+
     def _remove_duplicates(self, ipos: List[Dict]) -> List[Dict]:
         """Remove duplicate IPOs based on company name"""
         seen = set()

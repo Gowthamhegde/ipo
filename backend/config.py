@@ -9,13 +9,19 @@ class Settings:
     # Application
     APP_NAME: str = "IPO GMP Analyzer"
     APP_VERSION: str = "2.0.0"
-    DEBUG: bool = False
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./ipo_gmp_analyzer.db")
     
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    if not SECRET_KEY:
+        if ENVIRONMENT == "production":
+            raise ValueError("SECRET_KEY must be set in production environment")
+        SECRET_KEY = "dev-secret-key-change-this"
+        
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
@@ -26,14 +32,10 @@ class Settings:
     IPOWATCH_URL: str = "https://www.ipowatch.in"
     
     # CORS
-    ALLOWED_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://your-frontend-domain.com"
-    ]
+    ALLOWED_ORIGINS: list = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
     
     # Logging
-    LOG_LEVEL: str = "INFO"
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = "logs/app.log"
 
 # Create settings instance

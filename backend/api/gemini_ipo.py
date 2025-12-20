@@ -227,7 +227,7 @@ async def test_gemini_connection():
 async def start_daily_updates():
     """Start daily automatic updates at 9 AM IST"""
     try:
-        gemini_ipo_service.start_daily_updates()
+        await gemini_ipo_service.start_daily_updates()
         
         return {
             "status": "started",
