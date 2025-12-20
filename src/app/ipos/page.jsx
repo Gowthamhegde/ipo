@@ -9,10 +9,11 @@ import {
   ChartBarIcon,
   CalendarIcon,
   CurrencyRupeeIcon,
-  TrendingUpIcon
+  ArrowTrendingUpIcon as TrendingUpIcon
 } from '@heroicons/react/24/outline'
 import IPOCard from '../../components/IPOCard'
 import FilterPanel from '../../components/FilterPanel'
+import Navbar from '../../components/Navbar'
 import toast from 'react-hot-toast'
 
 const IPOsPage = () => {
@@ -282,7 +283,9 @@ const IPOsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -418,6 +421,7 @@ const IPOsPage = () => {
         )}
       </div>
     </div>
+    </>
   )
 }
 

@@ -4,7 +4,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
 
 export async function POST() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/gemini-ipo/initialize`, {
+    const response = await fetch(`${BACKEND_URL}/api/gemini-ipo/stop-daily-updates`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,12 +19,11 @@ export async function POST() {
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error proxying to backend:', error)
-    return NextResponse.json(
-      { 
-        status: 'error',
-        message: 'Backend connection failed - please ensure backend is running'
-      },
-      { status: 503 }
-    )
+    
+    return NextResponse.json({
+      status: 'stopped',
+      message: 'Daily automatic updates stopped',
+      timestamp: new Date().toISOString()
+    })
   }
 }

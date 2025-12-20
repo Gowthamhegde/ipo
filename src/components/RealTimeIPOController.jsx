@@ -23,7 +23,6 @@ const RealTimeIPOController = () => {
     fetchMetrics()
     fetchTasks()
     
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchServiceStatus()
       fetchMetrics()
@@ -78,7 +77,6 @@ const RealTimeIPOController = () => {
       }
     } catch (error) {
       toast.error('Error starting service')
-      console.error('Error starting service:', error)
     } finally {
       setIsLoading(false)
     }
@@ -98,7 +96,6 @@ const RealTimeIPOController = () => {
       }
     } catch (error) {
       toast.error('Error stopping service')
-      console.error('Error stopping service:', error)
     } finally {
       setIsLoading(false)
     }
@@ -119,7 +116,6 @@ const RealTimeIPOController = () => {
       }
     } catch (error) {
       toast.error('Error triggering fetch')
-      console.error('Error triggering fetch:', error)
     } finally {
       setIsLoading(false)
     }
@@ -139,7 +135,6 @@ const RealTimeIPOController = () => {
       }
     } catch (error) {
       toast.error('Error triggering task')
-      console.error('Error triggering task:', error)
     } finally {
       setIsLoading(false)
     }
@@ -255,7 +250,7 @@ const RealTimeIPOController = () => {
         <button
           onClick={startService}
           disabled={isLoading || serviceStatus?.service?.is_running}
-          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
         >
           <PlayIcon className="h-4 w-4 mr-2" />
           Start Service
@@ -264,7 +259,7 @@ const RealTimeIPOController = () => {
         <button
           onClick={stopService}
           disabled={isLoading || !serviceStatus?.service?.is_running}
-          className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
         >
           <StopIcon className="h-4 w-4 mr-2" />
           Stop Service
@@ -273,7 +268,7 @@ const RealTimeIPOController = () => {
         <button
           onClick={fetchNow}
           disabled={isLoading}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <ArrowPathIcon className="h-4 w-4 mr-2" />
           Fetch Now
@@ -306,21 +301,11 @@ const RealTimeIPOController = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Task ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Start Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Result
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Task ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">

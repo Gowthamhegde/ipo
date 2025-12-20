@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { 
   ChartBarIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
+  ArrowTrendingUpIcon as TrendingUpIcon,
+  ArrowTrendingDownIcon as TrendingDownIcon,
   CurrencyRupeeIcon,
   CalendarIcon,
   UsersIcon,
@@ -12,12 +12,13 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/outline'
-import GMPChart from '../../components/GMPChart'
 import StatsCard from '../../components/StatsCard'
+import Navbar from '../../components/Navbar'
 import toast from 'react-hot-toast'
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null)
+  const [loadytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('7d')
   const [selectedMetric, setSelectedMetric] = useState('gmp_trends')
@@ -164,7 +165,9 @@ const AnalyticsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -439,6 +442,7 @@ const AnalyticsPage = () => {
         )}
       </div>
     </div>
+    </>
   )
 }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUpIcon, TrendingDownIcon } from '@heroicons/react/24/outline';
+import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 
 const StatsCard = ({ 
   title, 
@@ -18,7 +18,7 @@ const StatsCard = ({
   };
 
   const isPositive = change > 0;
-  const TrendIcon = isPositive ? TrendingUpIcon : TrendingDownIcon;
+  const TrendIcon = isPositive ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   const trendColor = isPositive ? 'text-green-600' : 'text-red-600';
 
   return (

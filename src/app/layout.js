@@ -1,6 +1,6 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
-import Navigation from '../components/Navigation'
+import { Toaster } from 'react-hot-toast'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -9,7 +9,11 @@ export const metadata = {
   description: 'Complete IPO GMP tracking with ML predictions, real-time notifications, and investment insights for Indian stock market.',
   keywords: 'IPO, GMP, Grey Market Premium, Stock Market, India, Investment, ML Predictions',
   authors: [{ name: 'IPO GMP Analyzer Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#667eea',
 }
 
@@ -21,9 +25,8 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
       </head>
       <body className={`${inter.className} antialiased bg-gray-50 text-gray-900`}>
+        <Toaster position="top-right" />
         <div className="min-h-screen flex flex-col">
-          <Navigation />
-          
           <main className="flex-1">
             {children}
           </main>
