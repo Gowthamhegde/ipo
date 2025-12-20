@@ -2,6 +2,10 @@
 
 A complete IPO Grey Market Premium analyzer with AI-powered insights, real-time data fetching, and comprehensive market analysis.
 
+![CI/CD Pipeline](https://github.com/Gowthamhegde/ipo/workflows/CI/CD%20Pipeline/badge.svg)
+![CodeQL Security Analysis](https://github.com/Gowthamhegde/ipo/workflows/CodeQL%20Security%20Analysis/badge.svg)
+![Deploy to Vercel](https://github.com/Gowthamhegde/ipo/workflows/Deploy%20to%20Vercel/badge.svg)
+
 ![IPO GMP Analyzer](https://img.shields.io/badge/IPO-GMP%20Analyzer-blue?style=for-the-badge)
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python)
