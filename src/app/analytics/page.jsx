@@ -12,13 +12,13 @@ import {
   ArrowUpIcon,
   ArrowDownIcon
 } from '@heroicons/react/24/outline'
+import GMPChart from '../../components/GMPChart'
 import StatsCard from '../../components/StatsCard'
 import Navbar from '../../components/Navbar'
 import toast from 'react-hot-toast'
 
 const AnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null)
-  const [loadytics, setAnalytics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('7d')
   const [selectedMetric, setSelectedMetric] = useState('gmp_trends')
