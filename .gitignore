@@ -1,22 +1,32 @@
 # Dependencies
 node_modules/
-backend/__pycache__/
-backend/.pytest_cache/
-backend/venv/
-backend/env/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Production builds
+# Next.js
 .next/
 out/
 build/
-dist/
 
 # Environment variables
 .env
 .env.local
-.env.production
-.env.staging
-backend/.env
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Database
 *.db
@@ -26,9 +36,25 @@ backend/.env
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+backend/backend_debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build outputs
+dist/
+*.tgz
 
 # Runtime data
 pids/
@@ -38,41 +64,43 @@ pids/
 
 # Coverage directory used by tools like istanbul
 coverage/
-*.lcov
-.nyc_output/
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Dependency directories
+jspm_packages/
 
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Optional npm cache directory
+.npm
 
-# ML Models
-backend/models/*.joblib
-backend/models/*.pkl
+# Optional REPL history
+.node_repl_history
 
-# Temporary files
-tmp/
-temp/
+# Output of 'npm pack'
+*.tgz
 
-# Docker
-.dockerignore
+# Yarn Integrity file
+.yarn-integrity
 
-# Testing
-test-results/
-playwright-report/
-playwright/.cache/
+# dotenv environment variables file
+.env
 
-# Cache
-.cache/
-.parcel-cache/
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
