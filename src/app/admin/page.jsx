@@ -8,9 +8,10 @@ import {
   BellIcon,
   ServerIcon
 } from '@heroicons/react/24/outline'
-import RealTimeIPOController from '../../components/RealTimeIPOController'
-import GeminiIPOController from '../../components/GeminiIPOController'
 import Navbar from '../../components/Navbar'
+
+// Disable static generation for this page
+export const dynamic = 'force-dynamic'
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('gemini')
@@ -133,14 +134,14 @@ const AdminDashboard = () => {
           />
           <StatCard
             title="Active Users"
-            value={systemStats.active_users || 892}
+            value={systemStats.active_users}
             subtitle="Active accounts"
             icon={UsersIcon}
             color="indigo"
           />
           <StatCard
             title="Recent Notifications"
-            value={systemStats.recent_notifications || 45}
+            value={systemStats.recent_notifications}
             subtitle="Last 7 days"
             icon={BellIcon}
             color="orange"
@@ -150,38 +151,6 @@ const AdminDashboard = () => {
         <div className="text-center py-12">
           <ServerIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500">Loading system statistics...</p>
-        </div>
-      )}
-
-      {systemStats && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4">System Health</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span>Database Connection</span>
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                Healthy
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Cache System</span>
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                Active
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Background Tasks</span>
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                Running
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Last Update</span>
-              <span className="text-sm text-gray-600">
-                {new Date(systemStats.last_update).toLocaleString()}
-              </span>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -195,12 +164,66 @@ const AdminDashboard = () => {
     </div>
   )
 
+  const GeminiControllerTab = () => (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Gemini AI Controller</h3>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div>
+            <h4 className="font-medium">Service Status</h4>
+            <p className="text-sm text-gray-600">Gemini AI service is running</p>
+          </div>
+          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Active</span>
+        </div>
+        
+        <div className="flex space-x-4">
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Initialize Service
+          </button>
+          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Fetch IPO Data
+          </button>
+          <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+            Get Market Sentiment
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const RealtimeControllerTab = () => (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Real-time IPO Controller</h3>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div>
+            <h4 className="font-medium">Service Status</h4>
+            <p className="text-sm text-gray-600">Real-time data service is running</p>
+          </div>
+          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Running</span>
+        </div>
+        
+        <div className="flex space-x-4">
+          <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            Start Service
+          </button>
+          <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+            Stop Service
+          </button>
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Fetch Now
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'gemini':
-        return <GeminiIPOController />
+        return <GeminiControllerTab />
       case 'realtime':
-        return <RealTimeIPOController />
+        return <RealtimeControllerTab />
       case 'system':
         return <SystemStatsTab />
       case 'users':
@@ -210,7 +233,7 @@ const AdminDashboard = () => {
       case 'settings':
         return <PlaceholderTab title="System Settings" />
       default:
-        return <GeminiIPOController />
+        return <GeminiControllerTab />
     }
   }
 

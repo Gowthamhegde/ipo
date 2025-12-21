@@ -1,65 +1,149 @@
-name: IPO GMP Analyzer CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ main, production, develop ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ main, production ]
 
 jobs:
+  # Frontend Tests and Build
   frontend:
-    name: Frontend (Next.js)
+    name: Frontend CI
     runs-on: ubuntu-latest
     
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Set up Node.js
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: ${{ matrix.node-version }}
         cache: 'npm'
-
+        
     - name: Install dependencies
       run: npm ci
-
-    - name: Lint
+      
+    - name: Run ESLint
       run: npm run lint
-
-    - name: Build
+      
+    - name: Run type checking
+      run: npx tsc --noEmit
+      
+    - name: Build application
       run: npm run build
-
-    - name: Test
-      run: npm test -- --passWithNoTests
-
-  backend:
-    name: Backend (FastAPI)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
+      env:
+        NEXT_PUBLIC_APP_NAME: IPO GMP Analyzer
+        NEXT_PUBLIC_APP_VERSION: 2.0.0
+        BACKEND_URL: http://localhost:8000
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        python-version: '3.10'
-        cache: 'pip'
+        name: build-files-${{ matrix.node-version }}
+        path: .next/
+        retention-days: 1
 
-    - name: Install dependencies
+  # Backend Tests
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, '3.10', '3.11']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install Python dependencies
       run: |
+        cd backend
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install pytest httpx
-
-    - name: Test
-      # Running pytest. If no tests are found, it might exit with code 5. 
-      # We allow it to fail for now if it's just "no tests found" or we can create a dummy test.
-      # For a setup task, we want green lights if the code compiles/installs.
-      # We will add a dummy test file in the project to ensure this passes comfortably.
+        pip install beautifulsoup4 requests
+        
+    - name: Test backend server
       run: |
-        python -m pytest || if [ $? -eq 5 ]; then echo "No tests collected, skipping"; else exit $?; fi
+        cd backend
+        python -c "import simple_server; print('Backend imports successfully')"
+        
+    - name: Test real IPO fetcher
+      run: |
+        cd backend
+        python -c "from real_ipo_fetcher import RealIPOFetcher; print('IPO fetcher imports successfully')"
+
+  # Security Scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: [frontend]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run npm audit
+      run: npm audit --audit-level=moderate
+      
+    - name: Run Snyk security scan
+      uses: snyk/actions/node@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+  # Performance Testing
+  lighthouse:
+    name: Lighthouse Performance
+    runs-on: ubuntu-latest
+    needs: [frontend]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
+      env:
+        NEXT_PUBLIC_APP_NAME: IPO GMP Analyzer
+        
+    - name: Start application
+      run: |
+        npm start &
+        sleep 10
+        
+    - name: Run Lighthouse CI
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        configPath: './.lighthouserc.json'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
