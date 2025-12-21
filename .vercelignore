@@ -1,0 +1,44 @@
+# Backend files (not needed for frontend deployment)
+backend/
+*.py
+*.pyc
+__pycache__/
+
+# Development files
+.git/
+.github/
+node_modules/
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Database files
+*.db
+*.sqlite
+
+# Environment files (use Vercel environment variables instead)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Test files
+**/*.test.js
+**/*.test.jsx
+**/*.test.ts
+**/*.test.tsx
+coverage/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Build artifacts
+.next/
+out/
+dist/

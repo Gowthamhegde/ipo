@@ -38,7 +38,16 @@ const nextConfig: NextConfig = {
     
     return config
   },
-
+  // Vercel-specific optimizations
+  experimental: {
+    optimizePackageImports: ['@heroicons/react'],
+  },
+  // Ensure proper static generation
+  trailingSlash: false,
+  // Disable x-powered-by header
+  poweredByHeader: false,
+  // Compress responses
+  compress: true,
 }
 
 export default nextConfig

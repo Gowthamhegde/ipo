@@ -251,4 +251,5 @@ class GeminiFirstIPOService {
   }
 }
 
-export default new GeminiFirstIPOService()
+const geminiFirstIPOService = new GeminiFirstIPOService()
+export default geminiFirstIPOService
