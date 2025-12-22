@@ -72,4 +72,4 @@ scipy==1.11.4
 
 # Scheduling & Background Tasks
 schedule==1.2.0
-apscheduler==3.10.4
+apscheduler==3.11.1
