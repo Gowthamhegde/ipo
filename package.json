@@ -17,7 +17,7 @@
     "deploy:prod": "npm run build && docker-compose -f docker-compose.prod.yml up -d"
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.17",
+    "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.0.18",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.2",
